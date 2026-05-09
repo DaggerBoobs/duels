@@ -388,6 +388,7 @@ html, body {
   border-color: rgba(255,255,255,0.2);
   background: var(--color-surface);
 }
+#demo-label { font-family: var(--font-pixel); font-size: 6px; color: var(--color-text-muted); align-self: center; }
 
 @media (max-width: 600px) {
   html, body { height: 100%; overflow: hidden; }
@@ -522,6 +523,7 @@ html, body {
     gap: 4px;
   }
 
+  #demo-label { font-size: 4px; }
 }
 
 
@@ -631,9 +633,9 @@ html, body {
     </div>
   </div>
 
-  <div class="control-center" id="match-status-center">
-    <div id="match-status-text" style="font-family:var(--font-pixel);font-size:6px;color:var(--color-text-muted);text-align:center;line-height:1.6;">WAITING<br>FOR MATCH</div>
-    <div id="expire-countdown" style="font-family:var(--font-pixel);font-size:7px;color:var(--color-gold);margin-top:6px;"></div>
+  <div class="control-center">
+    <span id="demo-label">DEMO</span>
+    <button id="btn-start">Start Duel</button>
   </div>
 
   <div class="control-panel p2-panel">
@@ -649,523 +651,290 @@ html, body {
 </div>
 
 <script>
-// ─────────────────────────────────────────────
-//  CONFIG
-// ─────────────────────────────────────────────
-const SUPABASE_URL      = 'https://dwidrzvykkhrwfknirnw.supabase.co';
-const SUPABASE_KEY      = 'sb_publishable_GaADxTu77sNKGDdgHxFgtQ_ZoXavNPX';
-const TWITCH_CLIENT_ID  = 'sni4thc0jgul9qlze6ml92fdir28xd';
-const SESSION_EXPIRE_MS = 10 * 60 * 1000; // 10 minutes
-const POLL_MS           = 1500;
-const RESULT_DISMISS_MS = 7000;
-const REDIRECT_URI      = window.location.origin + window.location.pathname;
+// ── SUPABASE CONFIG ── Replace these two values with your real credentials
+const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+function sbFetch(path, opts) {
+  opts = opts || {};
+  return fetch(SUPABASE_URL + path, Object.assign({}, opts, {
+    headers: Object.assign({
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+    }, opts.headers || {}),
+  }));
+}
+
+var _urlParams = new URLSearchParams(window.location.search);
+var SESSION_ID = _urlParams.get('sessionId') || null;
 
 const MOVES = {
-  jab:   { label: 'JAB',   dmg: 15 },
-  cross: { label: 'CROSS', dmg: 30 },
-  hook:  { label: 'HOOK',  dmg: 22 },
-  block: { label: 'BLOCK', dmg:  0 },
+  jab:   { label: 'JAB',   dmg: 15, desc: 'Quick straight' },
+  cross: { label: 'CROSS', dmg: 30, desc: 'Power straight' },
+  hook:  { label: 'HOOK',  dmg: 22, desc: 'Wide swing' },
+  block: { label: 'BLOCK', dmg: 0,  desc: 'Reduce dmg 60%' },
 };
-const BLOCK_REDUCTION   = 0.4;
-const REGULATION_ROUNDS = 4;
+const BLOCK_REDUCTION    = 0.4;
+const REGULATION_ROUNDS  = 4;
+const ROUND_REVEAL_DELAY = 5000;
 
-// ─────────────────────────────────────────────
-//  DOM REFS
-// ─────────────────────────────────────────────
-const $ = id => document.getElementById(id);
-const idleScreen      = $('idle-screen');
-const resultScreen    = $('result-screen');
-const p1NameEl        = $('p1-name');
-const p2NameEl        = $('p2-name');
-const p1HpFill        = $('p1-hp-fill');
-const p2HpFill        = $('p2-hp-fill');
-const p1HpVal         = $('p1-hp-val');
-const p2HpVal         = $('p2-hp-val');
-const roundNumEl      = $('round-num');
-const roundCdEl       = $('round-countdown');
-const wagerValEl      = $('wager-val');
-const p1Badge         = $('p1-move-badge');
-const p2Badge         = $('p2-move-badge');
-const boxerP1         = $('boxer-p1');
-const boxerP2         = $('boxer-p2');
-const resultWinner    = $('result-winner-text');
-const resultName      = $('result-name-text');
-const resultPot       = $('result-pot-text');
-const resultSub       = $('result-sub-text');
-const resultDismiss   = $('result-dismiss-text');
-const matchStatusText = $('match-status-text');
-const expireCd        = $('expire-countdown');
-
-// ─────────────────────────────────────────────
-//  STATE
-// ─────────────────────────────────────────────
-const state = {
-  active: false,
-  sessionId: null,
-  wager: 0,
-  round: 0,
-  expiresAt: null,
-  p1: { hp: 100, name: 'PLAYER 1', move: null, lastMove: null, prevMove: null },
-  p2: { hp: 100, name: 'PLAYER 2', move: null, lastMove: null, prevMove: null },
+var state = {
+  active: false, round: 0,
+  p1: { name: 'PLAYER1', hp: 100, lastMove: null, lastLastMove: null },
+  p2: { name: 'PLAYER2', hp: 100, lastMove: null, lastLastMove: null },
+  p1Move: null, p2Move: null, wager: 500, waitingFor: null,
 };
-let twitchUser    = null;
-let myPlayer      = null; // 'p1' or 'p2' — set after Twitch login
-let pollInterval  = null;
-let expireIv      = null;
-let resultIv      = null;
-let breakIv       = null;
-let countdownIv   = null;
 
-// ─────────────────────────────────────────────
-//  OBS DETECTION  (?obs=1 hides controls + login)
-// ─────────────────────────────────────────────
-(function detectOBS() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('obs') === '1' || navigator.userAgent.includes('OBS') || window.obsstudio) {
-    document.body.classList.add('obs-mode');
-  }
-})();
+var $ = function(id) { return document.getElementById(id); };
+var idleScreen     = $('idle-screen');
+var resultScreen   = $('result-screen');
+var idleTitleText  = $('idle-title-text');
+var idleBreakTimer = $('idle-break-timer');
+var idleSubText    = $('idle-sub-text');
+var p1HpFill = $('p1-hp-fill'); var p2HpFill = $('p2-hp-fill');
+var p1HpVal  = $('p1-hp-val');  var p2HpVal  = $('p2-hp-val');
+var p1NameEl = $('p1-name');    var p2NameEl = $('p2-name');
+var roundNumEl = $('round-num'); var wagerValEl = $('wager-val');
+var ev1 = $('ev1'); var ev2 = $('ev2');
+var p1Badge = $('p1-move-badge'); var p2Badge = $('p2-move-badge');
+var boxerP1 = $('boxer-p1');    var boxerP2 = $('boxer-p2');
 
-// ─────────────────────────────────────────────
-//  SUPABASE HELPER
-// ─────────────────────────────────────────────
-function sbFetch(path, options = {}) {
-  const headers = {
-    apikey: SUPABASE_KEY,
-    Authorization: 'Bearer ' + SUPABASE_KEY,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    ...(options.headers || {}),
-  };
-  return fetch(SUPABASE_URL + path, { ...options, headers });
+var roundCountdownId = null;
+var breakOverlayId   = null;
+var supabasePoller   = null;
+
+function pollSession() {
+  if (!SESSION_ID) return;
+  sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(SESSION_ID) + '&select=*&limit=1')
+  .then(function(res) { if (!res.ok) return; return res.json(); })
+  .then(function(rows) {
+    if (!rows || !rows.length) return;
+    var row = rows[0];
+    if (row.status === 'in_progress' && !state.active) {
+      stopPolling();
+      var p1name = row.challenger_name || row.p1_name || 'PLAYER 1';
+      var p2name = row.target_name     || row.p2_name || 'PLAYER 2';
+      var wager  = row.wager           || row.amount  || 500;
+      DuelArena.startDuel(p1name, p2name, wager);
+    }
+  }).catch(function(e) { console.warn('[Arena] Poll error:', e); });
 }
 
-// ─────────────────────────────────────────────
-//  TWITCH LOGIN
-// ─────────────────────────────────────────────
-function twitchLogin() {
-  const url = 'https://id.twitch.tv/oauth2/authorize'
-    + '?client_id=' + TWITCH_CLIENT_ID
-    + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
-    + '&response_type=token'
-    + '&scope=user:read:email';
-  window.location.href = url;
+function startPolling() {
+  if (supabasePoller || !SESSION_ID) return;
+  pollSession();
+  supabasePoller = setInterval(pollSession, 2000);
 }
 
-async function handleTwitchCallback() {
-  const hash = window.location.hash;
-  if (!hash.includes('access_token')) return false;
-  const params = new URLSearchParams(hash.replace('#', ''));
-  const token  = params.get('access_token');
-  if (!token) return false;
-  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-  const resp = await fetch('https://api.twitch.tv/helix/users', {
-    headers: { Authorization: 'Bearer ' + token, 'Client-Id': TWITCH_CLIENT_ID },
-  });
-  const data = await resp.json();
-  if (!data.data || !data.data[0]) return false;
-  twitchUser = { id: data.data[0].id, name: data.data[0].display_name, token };
-  $('twitch-login-screen').classList.add('hidden');
-  return true;
+function stopPolling() {
+  if (supabasePoller) { clearInterval(supabasePoller); supabasePoller = null; }
 }
 
-// ─────────────────────────────────────────────
-//  UI HELPERS
-// ─────────────────────────────────────────────
-function updateHP() {
-  const p1 = Math.max(0, Math.min(100, Number(state.p1.hp) || 0));
-  const p2 = Math.max(0, Math.min(100, Number(state.p2.hp) || 0));
-  p1HpFill.style.width = p1 + '%';
-  p2HpFill.style.width = p2 + '%';
-  p1HpVal.textContent  = p1;
-  p2HpVal.textContent  = p2;
+function markSessionComplete(winnerName) {
+  if (!SESSION_ID) return;
+  sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(SESSION_ID), {
+    method: 'PATCH',
+    headers: { 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ status: 'complete', winner_name: winnerName }),
+  }).then(function() {
+    console.log('[Arena] Session complete. Winner:', winnerName);
+  }).catch(function(e) { console.error('[Arena] Patch failed:', e); });
 }
 
-function setBadge(el, move, status) {
-  if (!el) return;
-  el.className = 'move-badge';
-  if (status === 'waiting')  { el.classList.add('waiting');  el.textContent = 'Waiting...'; return; }
-  if (status === 'locked')   { el.classList.add('locked');   el.textContent = 'LOCKED';     return; }
-  if (status === 'revealed' && move) {
-    el.classList.add('revealed-' + move);
-    el.textContent = (MOVES[move] && MOVES[move].label) || move.toUpperCase();
-  }
-}
-
-function showEvent(line1, cls1, line2, cls2) {
-  const log = $('event-log');
-  log.innerHTML = '';
-  const add = (txt, cls) => {
-    if (!txt) return;
-    const d = document.createElement('div');
-    d.className = 'event-line ' + cls;
-    d.textContent = txt;
-    log.appendChild(d);
-    requestAnimationFrame(() => d.classList.add('visible'));
-  };
-  add(line1, cls1 || 'ev-info');
-  add(line2, cls2 || 'ev-info');
-}
-
-function animateBoxer(wrap, cls, dur = 600) {
-  wrap.classList.remove('punching', 'blocking', 'taking-hit');
-  void wrap.offsetWidth;
-  wrap.classList.add(cls);
-  setTimeout(() => wrap.classList.remove(cls), dur);
-}
-
-function setMatchStatus(line1, line2) {
-  if (!matchStatusText) return;
-  matchStatusText.innerHTML = (line1 || '') + (line2 ? '<br>' + line2 : '');
-}
-
-function updateButtons() {
-  const active = state.active && myPlayer !== null;
-  const prefix = myPlayer === 'p1' ? 'btn-p1-' : 'btn-p2-';
-  ['jab', 'cross', 'hook', 'block'].forEach(m => {
-    const b = $(prefix + m);
-    if (b) b.disabled = !active || state[myPlayer].move !== null;
-  });
-}
-
-// ─────────────────────────────────────────────
-//  EXPIRY COUNTDOWN
-// ─────────────────────────────────────────────
-function startExpiryClock() {
-  if (expireIv) clearInterval(expireIv);
-  function tick() {
-    if (!state.expiresAt) return;
-    const msLeft = state.expiresAt - Date.now();
-    if (msLeft <= 0) { expireSession(); return; }
-    const mins = Math.floor(msLeft / 60000);
-    const secs = Math.floor((msLeft % 60000) / 1000);
-    if (expireCd) expireCd.textContent = mins + ':' + String(secs).padStart(2, '0');
-    roundCdEl.textContent = 'LIVE ' + mins + ':' + String(secs).padStart(2, '0');
-  }
-  tick();
-  expireIv = setInterval(tick, 1000);
-}
-
-async function expireSession() {
-  clearAllTimers();
-  if (state.sessionId) {
-    try {
-      await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId), {
-        method: 'PATCH',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ status: 'expired' }),
-      });
-    } catch (e) { console.error('[Arena] expire patch failed', e); }
-  }
-  resetArena('session expired — type !box @username in chat');
-}
-
-// ─────────────────────────────────────────────
-//  RESULT SCREEN
-// ─────────────────────────────────────────────
-function showResultScreen(winnerName, loserName) {
-  state.active = false;
-  updateButtons();
-  resultWinner.textContent = 'WINNER';
-  resultName.textContent   = winnerName;
-  resultPot.textContent    = '+ ' + (Number(state.wager) * 2) + ' coins';
-  resultSub.textContent    = loserName + ' has been defeated';
-  resultScreen.classList.add('visible');
-  let secs = Math.floor(RESULT_DISMISS_MS / 1000);
-  resultDismiss.textContent = 'closing in ' + secs + 's';
-  if (resultIv) clearInterval(resultIv);
-  resultIv = setInterval(() => {
-    secs--;
-    resultDismiss.textContent = 'closing in ' + secs + 's';
-    if (secs <= 0) resetArena();
+function showBreakOverlay(seconds) {
+  if (breakOverlayId) { clearInterval(breakOverlayId); breakOverlayId = null; }
+  idleScreen.classList.remove('hidden');
+  if (idleTitleText)  idleTitleText.classList.add('break-active');
+  if (idleSubText)    idleSubText.textContent = 'next round starts in';
+  if (idleBreakTimer) idleBreakTimer.textContent = String(seconds);
+  var remaining = seconds;
+  breakOverlayId = setInterval(function() {
+    remaining--;
+    if (remaining <= 0) {
+      if (idleBreakTimer) idleBreakTimer.textContent = '';
+      if (idleTitleText)  idleTitleText.classList.remove('break-active');
+      if (idleSubText)    idleSubText.textContent = 'type !box @username in chat';
+      idleScreen.classList.add('hidden');
+      clearInterval(breakOverlayId); breakOverlayId = null;
+    } else {
+      if (idleBreakTimer) idleBreakTimer.textContent = String(remaining);
+    }
   }, 1000);
 }
 
-// ─────────────────────────────────────────────
-//  RESET
-// ─────────────────────────────────────────────
-function clearAllTimers() {
-  if (pollInterval) clearInterval(pollInterval);
-  if (expireIv)     clearInterval(expireIv);
-  if (resultIv)     clearInterval(resultIv);
-  if (breakIv)      clearInterval(breakIv);
-  if (countdownIv)  clearInterval(countdownIv);
-  pollInterval = expireIv = resultIv = breakIv = countdownIv = null;
+function hideBreakOverlay() {
+  if (breakOverlayId) { clearInterval(breakOverlayId); breakOverlayId = null; }
+  if (idleBreakTimer) idleBreakTimer.textContent = '';
+  if (idleTitleText)  idleTitleText.classList.remove('break-active');
+  if (idleSubText)    idleSubText.textContent = 'type !box @username in chat';
+  idleScreen.classList.add('hidden');
 }
 
-function resetArena(msg = 'type !box @username in chat') {
-  clearAllTimers();
-  state.active    = false;
-  state.sessionId = null;
-  state.wager     = 0;
-  state.round     = 0;
-  state.expiresAt = null;
-  state.p1 = { hp: 100, name: 'PLAYER 1', move: null, lastMove: null, prevMove: null };
-  state.p2 = { hp: 100, name: 'PLAYER 2', move: null, lastMove: null, prevMove: null };
-  myPlayer = null;
-
-  resultScreen.classList.remove('visible');
-  idleScreen.classList.remove('hidden');
-  $('idle-title-text').classList.remove('break-active');
-  $('idle-break-timer').textContent = '';
-  $('idle-sub-text').textContent    = msg;
-  p1NameEl.textContent  = 'PLAYER 1';
-  p2NameEl.textContent  = 'PLAYER 2';
-  roundNumEl.textContent  = '—';
-  roundCdEl.textContent   = '';
-  wagerValEl.textContent  = '—';
-  if (expireCd) expireCd.textContent = '';
-  setMatchStatus('WAITING', 'FOR MATCH');
-  setBadge(p1Badge, null, 'waiting');
-  setBadge(p2Badge, null, 'waiting');
-  updateHP();
-  showEvent('', '', '', '');
-  updateButtons();
+function setRoundCountdown(seconds) {
+  var el = document.getElementById('round-timer');
+  if (!el) return;
+  if (roundCountdownId) { clearInterval(roundCountdownId); roundCountdownId = null; }
+  if (seconds <= 0) { el.textContent = ''; return; }
+  el.textContent = 'Next round in ' + seconds + 's';
+  roundCountdownId = setInterval(function() {
+    seconds--;
+    if (seconds <= 0) {
+      clearInterval(roundCountdownId); roundCountdownId = null; el.textContent = '';
+    } else { el.textContent = 'Next round in ' + seconds + 's'; }
+  }, 1000);
 }
 
-// ─────────────────────────────────────────────
-//  MOVE VALIDATION (no 3-in-a-row)
-// ─────────────────────────────────────────────
-function canUseMove(pState, move) {
-  return !(pState.lastMove === move && pState.prevMove === move);
+function updateHP() {
+  var p1pct = Math.max(0, state.p1.hp); var p2pct = Math.max(0, state.p2.hp);
+  p1HpFill.style.width = p1pct + '%'; p2HpFill.style.width = p2pct + '%';
+  p1HpVal.textContent = p1pct; p2HpVal.textContent = p2pct;
 }
 
-// ─────────────────────────────────────────────
-//  BUTTON CLICK HANDLER  (live submission)
-// ─────────────────────────────────────────────
-async function onMoveClick(move) {
-  if (!state.active || !myPlayer) return;
-  const pState = state[myPlayer];
-  if (pState.move !== null) return; // already submitted this round
+function showEvent(line1, cls1, line2, cls2) {
+  ev1.textContent = line1 || ''; ev1.className = 'event-line ' + (cls1||'ev-info') + ' visible';
+  ev2.textContent = line2 || ''; ev2.className = 'event-line ' + (cls2||'ev-info') + (line2 ? ' visible' : '');
+}
 
-  if (!canUseMove(pState, move)) {
-    showEvent('Cannot use ' + move.toUpperCase() + ' 3x in a row!', 'ev-hit', 'Pick a different move', 'ev-info');
-    return;
-  }
+function setBadge(el, move, st) {
+  if (st === 'waiting')  { el.textContent = 'WAITING'; el.className = 'move-badge waiting'; }
+  else if (st === 'locked')   { el.textContent = 'LOCKED';  el.className = 'move-badge locked'; }
+  else if (st === 'revealed') { el.textContent = MOVES[move].label; el.className = 'move-badge revealed-' + move; }
+}
 
-  pState.move = move;
-  const badge = myPlayer === 'p1' ? p1Badge : p2Badge;
-  setBadge(badge, move, 'locked');
-  updateButtons();
+function animateBoxer(wrap, type, cb) {
+  wrap.classList.remove('punching','blocking','taking-hit');
+  void wrap.offsetWidth;
+  wrap.classList.add(type);
+  setTimeout(function() { wrap.classList.remove(type); if (cb) cb(); }, 600);
+}
 
-  // Show selected state on button
-  const prefix = myPlayer === 'p1' ? 'btn-p1-' : 'btn-p2-';
-  ['jab', 'cross', 'hook', 'block'].forEach(m => {
-    const b = $(prefix + m);
-    if (b) b.classList.toggle('selected', m === move);
+function updateDemoButtons() {
+  var active = state.active;
+  $('btn-start').disabled = active;
+  var canP1 = active && (!state.p1Move || !state.p2Move);
+  var canP2 = active && (!state.p2Move || !state.p1Move);
+  ['jab','cross','hook','block'].forEach(function(m) {
+    $('btn-p1-'+m).disabled = !canP1;
+    $('btn-p2-'+m).disabled = !canP2;
   });
-
-  // Write move to Supabase
-  if (!state.sessionId) return;
-  const field = myPlayer === 'p1' ? 'challenger_move' : 'target_move';
-  try {
-    await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId), {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({ [field]: move }),
-    });
-  } catch (e) { console.error('[Arena] move submit failed', e); }
 }
 
-// ─────────────────────────────────────────────
-//  WIRE MOVE BUTTONS
-// ─────────────────────────────────────────────
-['p1', 'p2'].forEach(player => {
-  ['jab', 'cross', 'hook', 'block'].forEach(move => {
-    const btn = $('btn-' + player + '-' + move);
-    if (btn) {
-      btn.addEventListener('click', () => {
-        // Only the logged-in player's own buttons fire
-        if (myPlayer === player) onMoveClick(move);
-      });
+window.DuelArena = {
+  startDuel: function(p1name, p2name, wager) {
+    state.active = true; state.round = 0;
+    state.p1 = { name: p1name.toUpperCase(), hp: 100, lastMove: null, lastLastMove: null };
+    state.p2 = { name: p2name.toUpperCase(), hp: 100, lastMove: null, lastLastMove: null };
+    state.p1Move = null; state.p2Move = null; state.wager = wager || 500;
+    p1NameEl.textContent = state.p1.name; p2NameEl.textContent = state.p2.name;
+    wagerValEl.textContent = state.wager + ' dabloobs'; roundNumEl.textContent = '—';
+    updateHP(); hideBreakOverlay(); resultScreen.classList.remove('visible');
+    setBadge(p1Badge, null, 'waiting'); setBadge(p2Badge, null, 'waiting');
+    showEvent('⚔ DUEL ACCEPTED', 'ev-info', state.p1.name + ' vs ' + state.p2.name, 'ev-info');
+    setTimeout(function() { DuelArena.nextRound(); }, 1800);
+  },
+
+  nextRound: function() {
+    setRoundCountdown(0); state.round++; state.p1Move = null; state.p2Move = null; state.waitingFor = 'both';
+    roundNumEl.textContent = state.round <= REGULATION_ROUNDS ? (state.round+' / '+REGULATION_ROUNDS) : ('OT '+(state.round-REGULATION_ROUNDS));
+    setBadge(p1Badge, null, 'waiting'); setBadge(p2Badge, null, 'waiting');
+    ['jab','cross','hook','block'].forEach(function(m) { $('btn-p1-'+m).classList.remove('selected'); $('btn-p2-'+m).classList.remove('selected'); });
+    var lbl = state.round <= REGULATION_ROUNDS ? ('ROUND '+state.round) : ('OVERTIME '+(state.round-REGULATION_ROUNDS));
+    showEvent(lbl+' — PICK YOUR MOVE','ev-info','Both fighters choosing...','ev-info');
+    updateDemoButtons();
+  },
+
+  submitMove: function(player, move) {
+    if (!state.active || !MOVES[move]) return;
+    var p = state['p'+player];
+    if (p.lastMove === move && p.lastLastMove === move) {
+      showEvent('⚠ '+p.name+' cant use '+move+' again!','ev-hit','',''); return;
     }
-  });
+    if (player === 1) {
+      state.p1Move = move; setBadge(p1Badge, move, 'locked');
+      ['jab','cross','hook','block'].forEach(function(m) { $('btn-p1-'+m).classList.toggle('selected', m===move); });
+    } else {
+      state.p2Move = move; setBadge(p2Badge, move, 'locked');
+      ['jab','cross','hook','block'].forEach(function(m) { $('btn-p2-'+m).classList.toggle('selected', m===move); });
+    }
+    if (state.p1Move && state.p2Move) setTimeout(function() { DuelArena.resolveRound(); }, 800);
+    updateDemoButtons();
+  },
+
+  resolveRound: function() {
+    var m1 = state.p1Move, m2 = state.p2Move;
+    setBadge(p1Badge, m1, 'revealed'); setBadge(p2Badge, m2, 'revealed');
+    var dmg1to2 = MOVES[m1].dmg, dmg2to1 = MOVES[m2].dmg;
+    if (m2 === 'block') dmg1to2 = Math.round(dmg1to2 * BLOCK_REDUCTION);
+    if (m1 === 'block') dmg2to1 = Math.round(dmg2to1 * BLOCK_REDUCTION);
+    state.p2.hp = Math.max(0, state.p2.hp - dmg1to2);
+    state.p1.hp = Math.max(0, state.p1.hp - dmg2to1);
+    state.p1.lastLastMove = state.p1.lastMove; state.p1.lastMove = m1;
+    state.p2.lastLastMove = state.p2.lastMove; state.p2.lastMove = m2;
+    animateBoxer(boxerP1, m1==='block'?'blocking':'punching');
+    animateBoxer(boxerP2, m2==='block'?'blocking':'punching');
+    if (dmg1to2 > 0) setTimeout(function() { animateBoxer(boxerP2,'taking-hit'); }, 200);
+    if (dmg2to1 > 0) setTimeout(function() { animateBoxer(boxerP1,'taking-hit'); }, 200);
+    var line1 = state.p1.name+' used '+MOVES[m1].label;
+    var line2 = state.p2.name+' used '+MOVES[m2].label;
+    if (m2==='block' && dmg1to2<MOVES[m1].dmg) line1+=' → blocked! ('+dmg1to2+' dmg)'; else if (dmg1to2>0) line1+=' → '+dmg1to2+' dmg';
+    if (m1==='block' && dmg2to1<MOVES[m2].dmg) line2+=' → blocked! ('+dmg2to1+' dmg)'; else if (dmg2to1>0) line2+=' → '+dmg2to1+' dmg';
+    showEvent(line1, m1==='block'?'ev-block':'ev-hit', line2, m2==='block'?'ev-block':'ev-hit');
+    setTimeout(function() {
+      updateHP();
+      var ko   = state.p1.hp<=0 || state.p2.hp<=0;
+      var done = state.round>=REGULATION_ROUNDS && state.p1.hp!==state.p2.hp;
+      if (ko||done) { setRoundCountdown(0); hideBreakOverlay(); setTimeout(function(){DuelArena.showResult();},1000); }
+      else          { setRoundCountdown(5); showBreakOverlay(5); setTimeout(function(){DuelArena.nextRound();},ROUND_REVEAL_DELAY); }
+    }, 300);
+  },
+
+  showResult: function() {
+    state.active = false; updateDemoButtons();
+    var winnerName, loserName;
+    if (state.p1.hp >= state.p2.hp) { winnerName = state.p1.name; loserName = state.p2.name; }
+    else                             { winnerName = state.p2.name; loserName = state.p1.name; }
+    // ── PATCH SUPABASE: status=complete + winner_name ──
+    // Streamer.bot watches for this to pay dabloobs and post chat result
+    markSessionComplete(winnerName);
+    $('result-winner-text').textContent = '🏆 WINNER';
+    $('result-name-text').textContent   = winnerName;
+    $('result-pot-text').textContent    = '+ '+(state.wager*2)+' dabloobs';
+    $('result-sub-text').textContent    = loserName+' has been defeated';
+    resultScreen.classList.add('visible');
+    var secs = 7;
+    $('result-dismiss-text').textContent = 'closing in '+secs+'s';
+    var iv = setInterval(function() {
+      secs--; $('result-dismiss-text').textContent = 'closing in '+secs+'s';
+      if (secs<=0) { clearInterval(iv); DuelArena.reset(); }
+    }, 1000);
+  },
+
+  reset: function() {
+    state.active = false; stopPolling();
+    resultScreen.classList.remove('visible'); idleScreen.classList.remove('hidden');
+    roundNumEl.textContent = '—'; wagerValEl.textContent = '—';
+    p1NameEl.textContent = 'PLAYER 1'; p2NameEl.textContent = 'PLAYER 2';
+    state.p1.hp = 100; state.p2.hp = 100; updateHP(); setRoundCountdown(0);
+    showEvent('','','','');
+    setBadge(p1Badge,null,'waiting'); setBadge(p2Badge,null,'waiting');
+    ['jab','cross','hook','block'].forEach(function(m) { $('btn-p1-'+m).classList.remove('selected'); $('btn-p2-'+m).classList.remove('selected'); });
+    updateDemoButtons();
+  },
+};
+
+$('btn-start').addEventListener('click', function() { DuelArena.startDuel('Red Boxer','Blue Boxer',500); });
+['jab','cross','hook','block'].forEach(function(m) {
+  $('btn-p1-'+m).addEventListener('click', function() { DuelArena.submitMove(1,m); });
+  $('btn-p2-'+m).addEventListener('click', function() { DuelArena.submitMove(2,m); });
 });
 
-// ─────────────────────────────────────────────
-//  POLL — reads the_boob_games for both HP + moves,
-//          reads duel_rounds for resolved rounds
-// ─────────────────────────────────────────────
-let lastRoundSeen = 0;
+updateDemoButtons();
 
-async function poll() {
-  if (!state.sessionId || !state.active) return;
-  try {
-    // 1. Check session status + live HP
-    const sRes  = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId) + '&select=*&limit=1');
-    const sRows = await sRes.json();
-    const session = sRows && sRows[0];
-    if (!session) { resetArena('session not found'); return; }
-    if (session.status === 'expired' || session.status === 'finished' || session.status === 'cancelled') {
-      resetArena('type !box @username in chat');
-      return;
-    }
-
-    // Update HP from session row (Streamer.bot writes challenger_hp / target_hp)
-    if (session.challenger_hp !== undefined) state.p1.hp = Number(session.challenger_hp);
-    if (session.target_hp     !== undefined) state.p2.hp = Number(session.target_hp);
-    updateHP();
-
-    // Show opponent move badge as "locked" once they've submitted
-    const oppField = myPlayer === 'p1' ? 'target_move' : 'challenger_move';
-    if (session[oppField] && myPlayer) {
-      const oppBadge = myPlayer === 'p1' ? p2Badge : p1Badge;
-      if (oppBadge.classList.contains('waiting')) setBadge(oppBadge, null, 'locked');
-    }
-
-    // 2. Fetch any new resolved rounds
-    const rRes  = await sbFetch('/rest/v1/duel_rounds?session_id=eq.' + encodeURIComponent(state.sessionId) + '&round=gt.' + lastRoundSeen + '&order=round.asc&select=*');
-    const rounds = await rRes.json();
-    if (Array.isArray(rounds) && rounds.length) {
-      for (const round of rounds) {
-        await applyRound(round);
-      }
-    }
-  } catch (e) { console.error('[Arena] poll error', e); }
+if (SESSION_ID) {
+  console.log('[Arena] sessionId found:', SESSION_ID, '— polling Supabase...');
+  startPolling();
 }
-
-async function applyRound(round) {
-  lastRoundSeen = Math.max(lastRoundSeen, Number(round.round) || 0);
-  state.round   = lastRoundSeen;
-
-  roundNumEl.textContent = state.round <= REGULATION_ROUNDS
-    ? (state.round + ' / ' + REGULATION_ROUNDS)
-    : ('OT ' + (state.round - REGULATION_ROUNDS));
-
-  const p1Move = String(round.p1_move || '').toLowerCase();
-  const p2Move = String(round.p2_move || '').toLowerCase();
-
-  // Animate
-  if (p1Move) animateBoxer(boxerP1, p1Move === 'block' ? 'blocking' : 'punching');
-  if (p2Move) animateBoxer(boxerP2, p2Move === 'block' ? 'blocking' : 'punching');
-  if (p1Move && p1Move !== 'block') setTimeout(() => animateBoxer(boxerP2, 'taking-hit', 400), 180);
-  if (p2Move && p2Move !== 'block') setTimeout(() => animateBoxer(boxerP1, 'taking-hit', 400), 180);
-
-  // Reveal badges
-  if (p1Move) setBadge(p1Badge, p1Move, 'revealed'); else setBadge(p1Badge, null, 'waiting');
-  if (p2Move) setBadge(p2Badge, p2Move, 'revealed'); else setBadge(p2Badge, null, 'waiting');
-
-  // Update HP from round row
-  if (round.p1_hp !== undefined && round.p1_hp !== null) state.p1.hp = Number(round.p1_hp);
-  if (round.p2_hp !== undefined && round.p2_hp !== null) state.p2.hp = Number(round.p2_hp);
-  updateHP();
-
-  // Event log
-  const txt = round.event_text || ('Round ' + round.round + ' — ' + state.p1.name + ' vs ' + state.p2.name);
-  showEvent(txt, 'ev-hit', state.p1.name + ' ' + state.p1.hp + 'HP  |  ' + state.p2.name + ' ' + state.p2.hp + 'HP', 'ev-info');
-
-  // Reset per-round move state for next round
-  state.p1.prevMove = state.p1.lastMove;
-  state.p1.lastMove = p1Move || null;
-  state.p2.prevMove = state.p2.lastMove;
-  state.p2.lastMove = p2Move || null;
-  state.p1.move = null;
-  state.p2.move = null;
-  setBadge(myPlayer === 'p1' ? p1Badge : p2Badge, null, 'waiting');
-  updateButtons();
-
-  // Winner
-  if (round.winner) {
-    const w = String(round.winner).toLowerCase();
-    const winnerName = w === 'p1' ? state.p1.name : state.p2.name;
-    const loserName  = w === 'p1' ? state.p2.name : state.p1.name;
-    setTimeout(() => showResultScreen(winnerName, loserName), 1200);
-  }
-}
-
-// ─────────────────────────────────────────────
-//  LOAD LIVE SESSION
-// ─────────────────────────────────────────────
-async function loadLiveSession() {
-  const params    = new URLSearchParams(window.location.search);
-  const sessionId = params.get('sessionId');
-  if (!sessionId) {
-    $('idle-sub-text').textContent = 'no sessionId in URL';
-    return;
-  }
-
-  try {
-    const res  = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(sessionId) + '&select=*&limit=1');
-    const rows = await res.json();
-    const session = rows && rows[0];
-
-    if (!session) { $('idle-sub-text').textContent = 'session not found'; return; }
-
-    // Expiry check
-    const createdAt = new Date(session.created_at || Date.now()).getTime();
-    const expiresAt = createdAt + SESSION_EXPIRE_MS;
-    state.sessionId = sessionId;
-    state.expiresAt = expiresAt;
-
-    if (Date.now() >= expiresAt) { await expireSession(); return; }
-    if (session.status !== 'in_progress') {
-      $('idle-sub-text').textContent = 'session not active yet';
-      return;
-    }
-
-    // Boot up arena
-    state.active    = true;
-    state.wager     = Number(session.wager || 0);
-    state.p1.name   = String(session.challenger_name || 'PLAYER 1').toUpperCase();
-    state.p2.name   = String(session.target_name     || 'PLAYER 2').toUpperCase();
-    state.p1.hp     = Number(session.challenger_hp   || 100);
-    state.p2.hp     = Number(session.target_hp       || 100);
-
-    idleScreen.classList.add('hidden');
-    p1NameEl.textContent  = state.p1.name;
-    p2NameEl.textContent  = state.p2.name;
-    wagerValEl.textContent = state.wager + ' coins';
-    updateHP();
-
-    roundNumEl.textContent = '—';
-    setBadge(p1Badge, null, 'waiting');
-    setBadge(p2Badge, null, 'waiting');
-    showEvent('DUEL ACCEPTED', 'ev-info', state.p1.name + ' vs ' + state.p2.name, 'ev-info');
-
-    // Figure out which player this browser is
-    if (twitchUser) {
-      if (session.challenger_id === twitchUser.id) {
-        myPlayer = 'p1';
-        // hide opponent's control panel
-        document.querySelectorAll('.p2-panel').forEach(el => el.style.display = 'none');
-        setMatchStatus('YOU ARE', 'PLAYER 1');
-      } else if (session.target_id === twitchUser.id) {
-        myPlayer = 'p2';
-        document.querySelectorAll('.p1-panel').forEach(el => el.style.display = 'none');
-        setMatchStatus('YOU ARE', 'PLAYER 2');
-      } else {
-        setMatchStatus('SPECTATING', '');
-      }
-    } else {
-      setMatchStatus('LOGIN', 'TO PLAY');
-    }
-    updateButtons();
-    startExpiryClock();
-    await poll();
-    pollInterval = setInterval(poll, POLL_MS);
-  } catch (e) {
-    console.error('[Arena] loadLiveSession error', e);
-    $('idle-sub-text').textContent = 'failed to load session';
-  }
-}
-
-// ─────────────────────────────────────────────
-//  BOOT
-// ─────────────────────────────────────────────
-(async function boot() {
-  // Handle Twitch OAuth redirect
-  const loggedIn = await handleTwitchCallback();
-  if (!loggedIn && !document.body.classList.contains('obs-mode')) {
-    // Show login screen only if sessionId is in URL (fight page, not just landing)
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('sessionId')) {
-      $('twitch-login-screen').classList.remove('hidden');
-    }
-  }
-
-  // Load session regardless — OBS doesn't log in but still displays fight
-  await loadLiveSession();
-})();
 </script>
 </body>
 </html>
