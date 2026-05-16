@@ -1179,7 +1179,17 @@ async function handleTwitchCallback() {
   const token  = params.get('access_token');
   if (!token) return false;
 
+  const stateParam = params.get('state');
+  if (stateParam && !window.location.search) {
+    history.replaceState(null, '', window.location.pathname + stateParam + window.location.hash);
+  }
+
   history.replaceState(null, '', window.location.pathname + window.location.search);
+
+  var callbackParams = new URLSearchParams(window.location.search);
+  if (!callbackParams.get('sessionId')) {
+    return false;
+  }
 
   try {
     const res  = await fetch('https://api.twitch.tv/helix/users', {
@@ -1221,13 +1231,15 @@ async function boot() {
   var twitchLoginBtn = $('twitch-login-btn');
   if (twitchLoginBtn) {
     twitchLoginBtn.addEventListener('click', function() {
-      var redirectUri = window.location.origin + window.location.pathname + window.location.search;
+      var redirectUri = window.location.origin + window.location.pathname;
       var scope = '';
+      var sessionQuery = window.location.search || '';
       var authUrl = 'https://id.twitch.tv/oauth2/authorize' +
         '?client_id=' + encodeURIComponent(TWITCH_CLIENT_ID) +
         '&redirect_uri=' + encodeURIComponent(redirectUri) +
         '&response_type=token' +
-        '&scope=' + encodeURIComponent(scope);
+        '&scope=' + encodeURIComponent(scope) +
+        '&state=' + encodeURIComponent(sessionQuery);
       window.location.href = authUrl;
     });
   }
