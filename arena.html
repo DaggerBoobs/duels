@@ -803,11 +803,15 @@ function hideBreakOverlay() {
 }
 
 function updateButtons() {
-  var canAct = state.active && myPlayer !== null;
-  var prefix = myPlayer === 'p1' ? 'btn-p1-' : 'btn-p2-';
-  ['jab','cross','hook','block'].forEach(function(m) {
-    var b = $(prefix + m);
-    if (b) b.disabled = !canAct || state[myPlayer].move !== null;
+  const active = state.active && myPlayer !== null;
+  ['p1', 'p2'].forEach(player => {
+    ['jab', 'cross', 'hook', 'block'].forEach(m => {
+      const b = $(`btn-${player}-${m}`);
+      if (b) {
+        const isMyPanel = player === myPlayer;
+        b.disabled = !active || !isMyPanel || state[player].move !== null;
+      }
+    });
   });
 }
 
@@ -846,16 +850,17 @@ function startExpiryClock() {
 
 async function expireSession() {
   clearAllTimers();
-  if (state.sessionId) {
-    try {
-      await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId), {
-        method: 'PATCH',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ status: 'expired' }),
-      });
-    } catch(e) { console.error('[Arena] expire patch failed', e); }
+  if (!state.sessionId) return;
+  try {
+    await sbFetch(`/rest/v1/the_boob_games?session_id=eq.${encodeURIComponent(state.sessionId)}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status: 'expired' })
+    });
+  } catch(e) {
+    console.error('Arena expire patch failed', e);
   }
-  resetArena('session expired — type !box @username in chat');
+  resetArena('session expired — type !box username in chat');
 }
 
 // ── RESULT SCREEN ─────────────────────────────────────────────
@@ -1025,8 +1030,7 @@ async function loadLiveSession() {
       return;
     }
 
-    var createdAt   = new Date(session.created_at || Date.now()).getTime();
-    state.expiresAt = createdAt + SESSION_EXPIRE_MS;
+    state.expiresAt = new Date(session.expires_at).getTime();
     state.sessionId = sessionId;
 
     if (Date.now() >= state.expiresAt) { await expireSession(); return; }
@@ -1046,6 +1050,10 @@ async function loadLiveSession() {
     idleScreen.classList.add('hidden');
     p1NameEl.textContent   = state.p1.name;
     p2NameEl.textContent   = state.p2.name;
+    const p1Title = document.querySelector('.p1-panel .control-title');
+    const p2Title = document.querySelector('.p2-panel .control-title');
+    if (p1Title) p1Title.textContent = state.p1.name;
+    if (p2Title) p2Title.textContent = state.p2.name;
     wagerValEl.textContent = state.wager + ' dabloobs';
     roundNumEl.textContent = '—';
     updateHP();
