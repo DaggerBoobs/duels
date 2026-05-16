@@ -508,41 +508,63 @@ html, body {
 @media (max-width: 600px) {
   #player-controls {
     position: fixed;
-    left: 0; right: 0; bottom: 0;
-    top: auto;
+    left: 0; right: 0;
+    bottom: auto;
+    top: 336px; /* sits right under the move-row boxes */
     transform: none;
     width: 100%;
+    max-width: 100%;
     padding: 4px 4px calc(env(safe-area-inset-bottom, 0px) + 4px);
-    gap: 3px;
-    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    grid-template-columns: 1fr 54px 1fr; /* P1 panel | center | P2 panel */
     align-items: stretch;
-    background: rgba(10,8,16,0.97);
-    border-top: 1px solid rgba(255,255,255,0.1);
+    background: linear-gradient(180deg, rgba(10,8,16,0), rgba(10,8,16,0.88) 14%, rgba(10,8,16,0.97) 100%);
     z-index: 200;
   }
+
   .control-panel {
-    padding: 4px 5px;
+    padding: 4px;
     min-height: 0;
-    gap: 3px;
+    gap: 4px;
+    /* Keep it flex-column so title → sub → buttons stack vertically */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
   }
-  .control-title { font-size: 9px; }
-  .control-sub   { font-size: 7px; }
+
+  .control-title {
+    font-size: 6px;
+  }
+
+  .control-sub {
+    font-size: 4px;
+  }
+
   .control-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr; /* 2-wide button grid, same as desktop */
     gap: 3px;
   }
+
   #player-controls button {
-    font-size: 11px;
+    font-size: 9px;
     min-width: 0;
     width: 100%;
-    min-height: 34px;
-    padding: 4px 2px;
-    line-height: 1.1;
+    min-height: 56px;
+    padding: 6px 2px;
+    line-height: 1.05;
   }
+
   .control-center {
-    display: none;
+    display: flex; /* Keep center column visible — rounds/timer/wager */
+    padding: 4px 3px;
+    min-height: 0;
+    gap: 4px;
+    background: transparent;      /* ADD THIS */
+    border: none;                  /* ADD THIS */
+    pointer-events: none;  
   }
+
   #arena {
     padding-bottom: 0px;
   }
