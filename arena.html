@@ -329,6 +329,7 @@ html, body {
   transition: opacity 0.5s;
 }
 #idle-screen.hidden { opacity: 0; pointer-events: none; }
+.hidden { display: none !important; }
 .idle-title { font-size: 18px; color: var(--color-gold); text-transform: uppercase; letter-spacing: 2px; }
 .idle-title.break-active { animation: blink 1s step-end infinite; }
 .idle-break-timer {
@@ -539,12 +540,33 @@ html, body {
 
 <div id="arena">
 
-  <!-- IDLE SCREEN -->
+    <!-- IDLE SCREEN -->
   <div id="idle-screen">
     <div class="idle-title" id="idle-title-text">⚔ DUEL ARENA ⚔</div>
     <div class="idle-break-timer" id="idle-break-timer"></div>
     <div class="idle-sub" id="idle-sub-text">type !box @username in chat</div>
     <div class="idle-hint"></div>
+  </div>
+
+  <!-- TWITCH LOGIN SCREEN -->
+  <div id="twitch-login-screen" class="hidden" style="
+    position: absolute; inset: 0; z-index: 50;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+    background: rgba(13,11,20,0.95);">
+    <div style="font-family: var(--font-pixel); font-size: 10px; color: var(--color-gold); letter-spacing: 2px;">
+      ⚔ DUEL ARENA ⚔
+    </div>
+    <div style="font-family: var(--font-pixel); font-size: 7px; color: var(--color-text-muted);">
+      Login to pick your moves
+    </div>
+    <button id="twitch-login-btn" style="
+      font-family: var(--font-pixel); font-size: 7px;
+      background: #9146ff; color: #fff;
+      border: none; padding: 12px 24px; cursor: pointer;
+      letter-spacing: 1px;">
+      LOGIN WITH TWITCH
+    </button>
   </div>
 
   <!-- HUD -->
@@ -1010,6 +1032,10 @@ async function applyRound(round) {
   }
 }
 
+// ─── CONFIG ──────────────────────────────────────────────────
+const TWITCH_CLIENT_ID = 'sni4thc0jgul9qlze6ml92fdir28xd';
+let   twitchUser       = null;
+
 // ── LOAD LIVE SESSION ─────────────────────────────────────────
 async function loadLiveSession() {
   var params    = new URLSearchParams(window.location.search);
@@ -1021,8 +1047,8 @@ async function loadLiveSession() {
   }
 
   try {
-    var res  = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(sessionId) + '&select=*&limit=1');
-    var rows = await res.json();
+    var res     = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(sessionId) + '&select=*&limit=1');
+    var rows    = await res.json();
     var session = rows && rows[0];
 
     if (!session) {
@@ -1047,9 +1073,16 @@ async function loadLiveSession() {
     state.p1.hp   = Number(session.challenger_hp !== undefined ? session.challenger_hp : 100);
     state.p2.hp   = Number(session.target_hp     !== undefined ? session.target_hp     : 100);
 
+    // ── DETERMINE WHICH PLAYER THIS USER IS ──────────────────
+    if (twitchUser) {
+      var login = twitchUser.login.toLowerCase();
+      if (login === session.challenger_name.toLowerCase())      myPlayer = 'p1';
+      else if (login === session.target_name.toLowerCase())     myPlayer = 'p2';
+    }
+
     idleScreen.classList.add('hidden');
-    p1NameEl.textContent   = state.p1.name;
-    p2NameEl.textContent   = state.p2.name;
+    p1NameEl.textContent = state.p1.name;
+    p2NameEl.textContent = state.p2.name;
     const p1Title = document.querySelector('.p1-panel .control-title');
     const p2Title = document.querySelector('.p2-panel .control-title');
     if (p1Title) p1Title.textContent = state.p1.name;
@@ -1057,6 +1090,7 @@ async function loadLiveSession() {
     wagerValEl.textContent = state.wager + ' dabloobs';
     roundNumEl.textContent = '—';
     updateHP();
+    updateButtons();
     setBadge(p1Badge, null, 'waiting');
     setBadge(p2Badge, null, 'waiting');
     showEvent('DUEL ACCEPTED', 'ev-info', state.p1.name + ' vs ' + state.p2.name, 'ev-info');
@@ -1070,11 +1104,48 @@ async function loadLiveSession() {
   }
 }
 
-// ── BOOT ─────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
+
+// ─── TWITCH AUTH ─────────────────────────────────────────────
+async function handleTwitchCallback() {
+  const hash = window.location.hash;
+  if (!hash) return false;
+
+  const params = new URLSearchParams(hash.replace('#', ''));
+  const token  = params.get('access_token');
+  if (!token) return false;
+
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+
+  try {
+    const res  = await fetch('https://api.twitch.tv/helix/users', {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Client-Id':     TWITCH_CLIENT_ID
+      }
+    });
+    const data = await res.json();
+    const user = data.data && data.data[0];
+    if (!user) return false;
+
+    twitchUser = {
+      id:    user.id,
+      login: user.login,
+      name:  user.display_name
+    };
+
+    console.log('[Twitch] Logged in as', twitchUser.name);
+    return true;
+
+  } catch(e) {
+    console.error('[Twitch] Auth failed', e);
+    return false;
+  }
+}
+
+// ─── BOOT ────────────────────────────────────────────────────
+async function boot() {
   initDom();
 
-  // Wire player buttons
   ['p1','p2'].forEach(function(player) {
     ['jab','cross','hook','block'].forEach(function(move) {
       var btn = $('btn-' + player + '-' + move);
@@ -1082,8 +1153,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  loadLiveSession();
-});
+  const loggedIn = await handleTwitchCallback();
+
+  if (!loggedIn) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('sessionId')) {
+      document.getElementById('twitch-login-screen').classList.remove('hidden');
+    }
+  }
+
+  await loadLiveSession();
+}
+
+document.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
