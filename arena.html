@@ -1218,6 +1218,20 @@ async function boot() {
     });
   });
 
+  var twitchLoginBtn = $('twitch-login-btn');
+  if (twitchLoginBtn) {
+    twitchLoginBtn.addEventListener('click', function() {
+      var redirectUri = window.location.origin + window.location.pathname + window.location.search;
+      var scope = '';
+      var authUrl = 'https://id.twitch.tv/oauth2/authorize' +
+        '?client_id=' + encodeURIComponent(TWITCH_CLIENT_ID) +
+        '&redirect_uri=' + encodeURIComponent(redirectUri) +
+        '&response_type=token' +
+        '&scope=' + encodeURIComponent(scope);
+      window.location.href = authUrl;
+    });
+  }
+
   const loggedIn = await handleTwitchCallback();
 
   if (!loggedIn) {
