@@ -341,54 +341,6 @@ html, body {
 .idle-sub { font-size: 8px; color: var(--color-text-muted); animation: blink 1.4s step-end infinite; }
 .idle-hint { font-size: 6px; color: rgba(255,255,255,0.2); margin-top: 8px; }
 
-/* ── PLAYER CONTROLS ── */
-#player-controls {
-  position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
-  width: min(1320px, calc(100vw - 20px));
-  display: grid; grid-template-columns: 1fr auto 1fr;
-  gap: 10px; z-index: 200;
-  align-items: stretch;
-}
-.control-panel {
-  background: rgba(0,0,0,0.86);
-  border: 1px solid rgba(255,255,255,0.12);
-  padding: 14px 16px;
-  min-height: 108px;
-  display: flex; flex-direction: column; gap: 10px;
-  justify-content: center;
-}
-.control-title {
-  font-size: 7px; color: var(--color-gold); text-transform: uppercase;
-}
-.control-sub {
-  font-size: 6px; color: var(--color-text-muted);
-}
-.control-buttons {
-  display: flex; flex-wrap: wrap; gap: 10px;
-}
-.control-center {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  background: rgba(0,0,0,0.86);
-  border: 1px solid rgba(255,255,255,0.12);
-  padding: 14px 18px;
-  min-height: 108px;
-}
-#player-controls button {
-  font-family: var(--font-pixel); font-size: 7px;
-  min-width: 86px;
-  padding: 8px 12px; cursor: pointer;
-  background: var(--color-surface); color: var(--color-text);
-  border: 1px solid rgba(255,255,255,0.2);
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-#player-controls button:hover { background: rgba(255,255,255,0.12); }
-#player-controls button:disabled { opacity: 0.3; cursor: default; }
-#player-controls button.selected {
-  color: var(--color-text);
-  border-color: rgba(255,255,255,0.2);
-  background: var(--color-surface);
-}
-#demo-label { font-family: var(--font-pixel); font-size: 6px; color: var(--color-text-muted); align-self: center; }
 
 @media (max-width: 600px) {
   html, body { height: 100%; overflow: hidden; }
@@ -477,54 +429,13 @@ html, body {
     justify-self: stretch;
   }
 
-  #player-controls {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: auto;
-    top: 336px;
-    transform: none;
-    width: 100%;
-    max-width: 100%;
-    padding: 4px 4px calc(env(safe-area-inset-bottom, 0px) + 4px);
-    gap: 4px;
-    grid-template-columns: 1fr 54px 1fr;
-    align-items: stretch;
-    background: linear-gradient(180deg, rgba(10,8,16,0), rgba(10,8,16,0.88) 14%, rgba(10,8,16,0.97) 100%);
+
+  
+    
+  
+  
+  
   }
-
-  .control-panel {
-    padding: 4px;
-    min-height: 164px;
-    gap: 4px;
-  }
-
-  .control-title { font-size: 6px; }
-  .control-sub { font-size: 4px; }
-
-  .control-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3px;
-  }
-
-  #player-controls button {
-    font-size: 9px;
-    min-width: 0;
-    width: 100%;
-    min-height: 56px;
-    padding: 6px 2px;
-    line-height: 1.05;
-  }
-
-  .control-center {
-    padding: 4px 3px;
-    min-height: 164px;
-    gap: 4px;
-  }
-
-  #demo-label { font-size: 4px; }
-}
 
 
 
@@ -540,6 +451,86 @@ html, body {
   .result-sub { font-size: 6px; margin-top: 4px; }
   .result-pot { font-size: 8px; }
   .result-dismiss { font-size: 5px; margin-top: 8px; }
+}
+
+
+/* ── PLAYER CONTROLS ── */
+#player-controls {
+  position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
+  width: min(1320px, calc(100vw - 20px));
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  gap: 10px; z-index: 200;
+  align-items: stretch;
+}
+.control-panel {
+  background: rgba(0,0,0,0.86);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 14px 16px;
+  min-height: 108px;
+  display: flex; flex-direction: column; gap: 10px;
+  justify-content: center;
+}
+.control-title {
+  font-size: 7px; color: var(--color-gold); text-transform: uppercase;
+}
+.control-sub {
+  font-size: 6px; color: var(--color-text-muted);
+}
+.control-buttons {
+  display: flex; flex-wrap: wrap; gap: 10px;
+}
+.control-center {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(0,0,0,0.86);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 14px 18px;
+  min-height: 108px;
+  min-width: 60px;
+}
+#player-controls button {
+  font-family: var(--font-pixel); font-size: 7px;
+  min-width: 86px;
+  padding: 8px 12px; cursor: pointer;
+  background: var(--color-surface); color: var(--color-text);
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+#player-controls button:hover { background: rgba(255,255,255,0.12); }
+#player-controls button:disabled { opacity: 0.3; cursor: default; }
+#player-controls button.selected {
+  color: var(--color-text);
+  border-color: rgba(255,255,255,0.2);
+  background: var(--color-surface);
+}
+
+@media (max-width: 600px) {
+  #player-controls {
+    position: fixed;
+    left: 0; right: 0; bottom: auto;
+    top: 336px;
+    transform: none;
+    width: 100%; max-width: 100%;
+    padding: 4px 4px calc(env(safe-area-inset-bottom, 0px) + 4px);
+    gap: 4px;
+    grid-template-columns: 1fr 54px 1fr;
+    align-items: stretch;
+    background: linear-gradient(180deg, rgba(10,8,16,0), rgba(10,8,16,0.88) 14%, rgba(10,8,16,0.97) 100%);
+  }
+  .control-panel {
+    padding: 4px; min-height: 164px; gap: 4px;
+  }
+  .control-title { font-size: 6px; }
+  .control-sub   { font-size: 4px; }
+  .control-buttons {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+  }
+  #player-controls button {
+    font-size: 9px; min-width: 0; width: 100%;
+    min-height: 56px; padding: 6px 2px; line-height: 1.05;
+  }
+  .control-center {
+    padding: 4px 3px; min-height: 164px; gap: 4px;
+  }
 }
 
 </style>
@@ -634,8 +625,6 @@ html, body {
   </div>
 
   <div class="control-center">
-    <span id="demo-label">DEMO</span>
-    <button id="btn-start">Start Duel</button>
   </div>
 
   <div class="control-panel p2-panel">
@@ -651,290 +640,442 @@ html, body {
 </div>
 
 <script>
-// ── SUPABASE CONFIG ── Replace these two values with your real credentials
-const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ═══════════════════════════════════════════════════════════════
+//  ARENA.HTML — LIVE VERSION
+//  Reads from Supabase the_boob_games + duel_rounds
+//  PATCHes status=complete+winner_name when match ends
+//  Streamer.bot polls for status=complete → pays dabloobs → posts chat
+// ═══════════════════════════════════════════════════════════════
 
-function sbFetch(path, opts) {
+// ── SUPABASE CONFIG ──────────────────────────────────────────
+const SB_URL = 'https://dwidrzvykkhrwfknirnw.supabase.co';
+const SB_KEY = 'sb_publishable_GaADxTu77sNKGDdgHxFgtQ_ZoXavNPX';
+
+async function sbFetch(path, opts) {
   opts = opts || {};
-  return fetch(SUPABASE_URL + path, Object.assign({}, opts, {
-    headers: Object.assign({
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'Content-Type': 'application/json',
-    }, opts.headers || {}),
-  }));
+  const url = SB_URL + path;
+  const headers = Object.assign({
+    'apikey':        SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY,
+    'Content-Type':  'application/json',
+  }, opts.headers || {});
+  return fetch(url, Object.assign({}, opts, { headers }));
 }
 
-var _urlParams = new URLSearchParams(window.location.search);
-var SESSION_ID = _urlParams.get('sessionId') || null;
-
+// ── CONSTANTS ────────────────────────────────────────────────
 const MOVES = {
-  jab:   { label: 'JAB',   dmg: 15, desc: 'Quick straight' },
-  cross: { label: 'CROSS', dmg: 30, desc: 'Power straight' },
-  hook:  { label: 'HOOK',  dmg: 22, desc: 'Wide swing' },
-  block: { label: 'BLOCK', dmg: 0,  desc: 'Reduce dmg 60%' },
+  jab:   { label: 'JAB',   dmg: 15 },
+  cross: { label: 'CROSS', dmg: 30 },
+  hook:  { label: 'HOOK',  dmg: 22 },
+  block: { label: 'BLOCK', dmg: 0  },
 };
 const BLOCK_REDUCTION    = 0.4;
 const REGULATION_ROUNDS  = 4;
 const ROUND_REVEAL_DELAY = 5000;
+const RESULT_DISMISS_MS  = 10000;
+const POLL_MS            = 2500;
+const SESSION_EXPIRE_MS  = 20 * 60 * 1000;
 
+// ── STATE ─────────────────────────────────────────────────────
 var state = {
-  active: false, round: 0,
-  p1: { name: 'PLAYER1', hp: 100, lastMove: null, lastLastMove: null },
-  p2: { name: 'PLAYER2', hp: 100, lastMove: null, lastLastMove: null },
-  p1Move: null, p2Move: null, wager: 500, waitingFor: null,
+  active:    false,
+  sessionId: null,
+  wager:     0,
+  round:     0,
+  expiresAt: null,
+  p1: { hp: 100, name: 'PLAYER 1', move: null, lastMove: null, prevMove: null },
+  p2: { hp: 100, name: 'PLAYER 2', move: null, lastMove: null, prevMove: null },
 };
+var myPlayer      = null;
+var pollInterval  = null;
+var expireIv      = null;
+var resultIv      = null;
+var breakIv       = null;
+var lastRoundSeen = 0;
 
-var $ = function(id) { return document.getElementById(id); };
-var idleScreen     = $('idle-screen');
-var resultScreen   = $('result-screen');
-var idleTitleText  = $('idle-title-text');
-var idleBreakTimer = $('idle-break-timer');
-var idleSubText    = $('idle-sub-text');
-var p1HpFill = $('p1-hp-fill'); var p2HpFill = $('p2-hp-fill');
-var p1HpVal  = $('p1-hp-val');  var p2HpVal  = $('p2-hp-val');
-var p1NameEl = $('p1-name');    var p2NameEl = $('p2-name');
-var roundNumEl = $('round-num'); var wagerValEl = $('wager-val');
-var ev1 = $('ev1'); var ev2 = $('ev2');
-var p1Badge = $('p1-move-badge'); var p2Badge = $('p2-move-badge');
-var boxerP1 = $('boxer-p1');    var boxerP2 = $('boxer-p2');
+// ── DOM REFS ─────────────────────────────────────────────────
+var $           = function(id) { return document.getElementById(id); };
+var idleScreen  = null;
+var resultScreen= null;
+var p1HpFill, p2HpFill, p1HpVal, p2HpVal;
+var p1NameEl, p2NameEl, roundNumEl, roundCdEl, wagerValEl;
+var p1Badge, p2Badge, boxerP1, boxerP2;
+var resultWinner, resultName, resultPot, resultSub, resultDismiss;
 
-var roundCountdownId = null;
-var breakOverlayId   = null;
-var supabasePoller   = null;
-
-function pollSession() {
-  if (!SESSION_ID) return;
-  sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(SESSION_ID) + '&select=*&limit=1')
-  .then(function(res) { if (!res.ok) return; return res.json(); })
-  .then(function(rows) {
-    if (!rows || !rows.length) return;
-    var row = rows[0];
-    if (row.status === 'in_progress' && !state.active) {
-      stopPolling();
-      var p1name = row.challenger_name || row.p1_name || 'PLAYER 1';
-      var p2name = row.target_name     || row.p2_name || 'PLAYER 2';
-      var wager  = row.wager           || row.amount  || 500;
-      DuelArena.startDuel(p1name, p2name, wager);
-    }
-  }).catch(function(e) { console.warn('[Arena] Poll error:', e); });
+function initDom() {
+  idleScreen   = $('idle-screen');
+  resultScreen = $('result-screen');
+  p1HpFill     = $('p1-hp-fill');
+  p2HpFill     = $('p2-hp-fill');
+  p1HpVal      = $('p1-hp-val');
+  p2HpVal      = $('p2-hp-val');
+  p1NameEl     = $('p1-name');
+  p2NameEl     = $('p2-name');
+  roundNumEl   = $('round-num');
+  roundCdEl    = $('round-countdown');
+  wagerValEl   = $('wager-val');
+  p1Badge      = $('p1-move-badge');
+  p2Badge      = $('p2-move-badge');
+  boxerP1      = $('boxer-p1');
+  boxerP2      = $('boxer-p2');
+  resultWinner = $('result-winner-text');
+  resultName   = $('result-name-text');
+  resultPot    = $('result-pot-text');
+  resultSub    = $('result-sub-text');
+  resultDismiss= $('result-dismiss-text');
 }
 
-function startPolling() {
-  if (supabasePoller || !SESSION_ID) return;
-  pollSession();
-  supabasePoller = setInterval(pollSession, 2000);
+// ── HELPERS ──────────────────────────────────────────────────
+function updateHP() {
+  var p1 = Math.max(0, state.p1.hp);
+  var p2 = Math.max(0, state.p2.hp);
+  p1HpFill.style.width = p1 + '%';
+  p2HpFill.style.width = p2 + '%';
+  p1HpVal.textContent  = p1;
+  p2HpVal.textContent  = p2;
 }
 
-function stopPolling() {
-  if (supabasePoller) { clearInterval(supabasePoller); supabasePoller = null; }
+function showEvent(line1, cls1, line2, cls2) {
+  var log = $('event-log');
+  if (!log) return;
+  log.innerHTML = '';
+  function add(txt, cls) {
+    if (!txt) return;
+    var d = document.createElement('div');
+    d.className = 'event-line ' + (cls || 'ev-info');
+    d.textContent = txt;
+    log.appendChild(d);
+    requestAnimationFrame(function() { d.classList.add('visible'); });
+  }
+  add(line1, cls1);
+  add(line2, cls2);
 }
 
-function markSessionComplete(winnerName) {
-  if (!SESSION_ID) return;
-  sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(SESSION_ID), {
-    method: 'PATCH',
-    headers: { 'Prefer': 'return=minimal' },
-    body: JSON.stringify({ status: 'complete', winner_name: winnerName }),
-  }).then(function() {
-    console.log('[Arena] Session complete. Winner:', winnerName);
-  }).catch(function(e) { console.error('[Arena] Patch failed:', e); });
+function setBadge(el, move, st) {
+  if (!el) return;
+  if (st === 'waiting') {
+    el.textContent = 'WAITING';
+    el.className = 'move-badge waiting';
+  } else if (st === 'locked') {
+    el.textContent = 'LOCKED IN';
+    el.className = 'move-badge locked';
+  } else if (st === 'revealed' && move && MOVES[move]) {
+    el.textContent = MOVES[move].label;
+    el.className = 'move-badge revealed-' + move;
+  }
+}
+
+function animateBoxer(wrap, cls, dur) {
+  if (!wrap) return;
+  dur = dur || 600;
+  wrap.classList.remove('punching', 'blocking', 'taking-hit');
+  void wrap.offsetWidth;
+  wrap.classList.add(cls);
+  setTimeout(function() { wrap.classList.remove(cls); }, dur);
 }
 
 function showBreakOverlay(seconds) {
-  if (breakOverlayId) { clearInterval(breakOverlayId); breakOverlayId = null; }
+  if (breakIv) { clearInterval(breakIv); breakIv = null; }
   idleScreen.classList.remove('hidden');
-  if (idleTitleText)  idleTitleText.classList.add('break-active');
-  if (idleSubText)    idleSubText.textContent = 'next round starts in';
-  if (idleBreakTimer) idleBreakTimer.textContent = String(seconds);
-  var remaining = seconds;
-  breakOverlayId = setInterval(function() {
-    remaining--;
-    if (remaining <= 0) {
-      if (idleBreakTimer) idleBreakTimer.textContent = '';
-      if (idleTitleText)  idleTitleText.classList.remove('break-active');
-      if (idleSubText)    idleSubText.textContent = 'type !box @username in chat';
+  $('idle-title-text').classList.add('break-active');
+  $('idle-sub-text').textContent   = 'next round starts in';
+  $('idle-break-timer').textContent= String(seconds);
+  var rem = seconds;
+  breakIv = setInterval(function() {
+    rem--;
+    if (rem <= 0) {
+      $('idle-break-timer').textContent = '';
+      $('idle-title-text').classList.remove('break-active');
+      $('idle-sub-text').textContent = state.active ? '' : 'type !box @username in chat';
       idleScreen.classList.add('hidden');
-      clearInterval(breakOverlayId); breakOverlayId = null;
+      clearInterval(breakIv); breakIv = null;
     } else {
-      if (idleBreakTimer) idleBreakTimer.textContent = String(remaining);
+      $('idle-break-timer').textContent = String(rem);
     }
   }, 1000);
 }
 
 function hideBreakOverlay() {
-  if (breakOverlayId) { clearInterval(breakOverlayId); breakOverlayId = null; }
-  if (idleBreakTimer) idleBreakTimer.textContent = '';
-  if (idleTitleText)  idleTitleText.classList.remove('break-active');
-  if (idleSubText)    idleSubText.textContent = 'type !box @username in chat';
+  if (breakIv) { clearInterval(breakIv); breakIv = null; }
+  $('idle-break-timer').textContent = '';
+  $('idle-title-text').classList.remove('break-active');
   idleScreen.classList.add('hidden');
 }
 
-function setRoundCountdown(seconds) {
-  var el = document.getElementById('round-timer');
-  if (!el) return;
-  if (roundCountdownId) { clearInterval(roundCountdownId); roundCountdownId = null; }
-  if (seconds <= 0) { el.textContent = ''; return; }
-  el.textContent = 'Next round in ' + seconds + 's';
-  roundCountdownId = setInterval(function() {
-    seconds--;
-    if (seconds <= 0) {
-      clearInterval(roundCountdownId); roundCountdownId = null; el.textContent = '';
-    } else { el.textContent = 'Next round in ' + seconds + 's'; }
-  }, 1000);
-}
-
-function updateHP() {
-  var p1pct = Math.max(0, state.p1.hp); var p2pct = Math.max(0, state.p2.hp);
-  p1HpFill.style.width = p1pct + '%'; p2HpFill.style.width = p2pct + '%';
-  p1HpVal.textContent = p1pct; p2HpVal.textContent = p2pct;
-}
-
-function showEvent(line1, cls1, line2, cls2) {
-  ev1.textContent = line1 || ''; ev1.className = 'event-line ' + (cls1||'ev-info') + ' visible';
-  ev2.textContent = line2 || ''; ev2.className = 'event-line ' + (cls2||'ev-info') + (line2 ? ' visible' : '');
-}
-
-function setBadge(el, move, st) {
-  if (st === 'waiting')  { el.textContent = 'WAITING'; el.className = 'move-badge waiting'; }
-  else if (st === 'locked')   { el.textContent = 'LOCKED';  el.className = 'move-badge locked'; }
-  else if (st === 'revealed') { el.textContent = MOVES[move].label; el.className = 'move-badge revealed-' + move; }
-}
-
-function animateBoxer(wrap, type, cb) {
-  wrap.classList.remove('punching','blocking','taking-hit');
-  void wrap.offsetWidth;
-  wrap.classList.add(type);
-  setTimeout(function() { wrap.classList.remove(type); if (cb) cb(); }, 600);
-}
-
-function updateDemoButtons() {
-  var active = state.active;
-  $('btn-start').disabled = active;
-  var canP1 = active && (!state.p1Move || !state.p2Move);
-  var canP2 = active && (!state.p2Move || !state.p1Move);
+function updateButtons() {
+  var canAct = state.active && myPlayer !== null;
+  var prefix = myPlayer === 'p1' ? 'btn-p1-' : 'btn-p2-';
   ['jab','cross','hook','block'].forEach(function(m) {
-    $('btn-p1-'+m).disabled = !canP1;
-    $('btn-p2-'+m).disabled = !canP2;
+    var b = $(prefix + m);
+    if (b) b.disabled = !canAct || state[myPlayer].move !== null;
   });
 }
 
-window.DuelArena = {
-  startDuel: function(p1name, p2name, wager) {
-    state.active = true; state.round = 0;
-    state.p1 = { name: p1name.toUpperCase(), hp: 100, lastMove: null, lastLastMove: null };
-    state.p2 = { name: p2name.toUpperCase(), hp: 100, lastMove: null, lastLastMove: null };
-    state.p1Move = null; state.p2Move = null; state.wager = wager || 500;
-    p1NameEl.textContent = state.p1.name; p2NameEl.textContent = state.p2.name;
-    wagerValEl.textContent = state.wager + ' dabloobs'; roundNumEl.textContent = '—';
-    updateHP(); hideBreakOverlay(); resultScreen.classList.remove('visible');
-    setBadge(p1Badge, null, 'waiting'); setBadge(p2Badge, null, 'waiting');
-    showEvent('⚔ DUEL ACCEPTED', 'ev-info', state.p1.name + ' vs ' + state.p2.name, 'ev-info');
-    setTimeout(function() { DuelArena.nextRound(); }, 1800);
-  },
-
-  nextRound: function() {
-    setRoundCountdown(0); state.round++; state.p1Move = null; state.p2Move = null; state.waitingFor = 'both';
-    roundNumEl.textContent = state.round <= REGULATION_ROUNDS ? (state.round+' / '+REGULATION_ROUNDS) : ('OT '+(state.round-REGULATION_ROUNDS));
-    setBadge(p1Badge, null, 'waiting'); setBadge(p2Badge, null, 'waiting');
-    ['jab','cross','hook','block'].forEach(function(m) { $('btn-p1-'+m).classList.remove('selected'); $('btn-p2-'+m).classList.remove('selected'); });
-    var lbl = state.round <= REGULATION_ROUNDS ? ('ROUND '+state.round) : ('OVERTIME '+(state.round-REGULATION_ROUNDS));
-    showEvent(lbl+' — PICK YOUR MOVE','ev-info','Both fighters choosing...','ev-info');
-    updateDemoButtons();
-  },
-
-  submitMove: function(player, move) {
-    if (!state.active || !MOVES[move]) return;
-    var p = state['p'+player];
-    if (p.lastMove === move && p.lastLastMove === move) {
-      showEvent('⚠ '+p.name+' cant use '+move+' again!','ev-hit','',''); return;
-    }
-    if (player === 1) {
-      state.p1Move = move; setBadge(p1Badge, move, 'locked');
-      ['jab','cross','hook','block'].forEach(function(m) { $('btn-p1-'+m).classList.toggle('selected', m===move); });
-    } else {
-      state.p2Move = move; setBadge(p2Badge, move, 'locked');
-      ['jab','cross','hook','block'].forEach(function(m) { $('btn-p2-'+m).classList.toggle('selected', m===move); });
-    }
-    if (state.p1Move && state.p2Move) setTimeout(function() { DuelArena.resolveRound(); }, 800);
-    updateDemoButtons();
-  },
-
-  resolveRound: function() {
-    var m1 = state.p1Move, m2 = state.p2Move;
-    setBadge(p1Badge, m1, 'revealed'); setBadge(p2Badge, m2, 'revealed');
-    var dmg1to2 = MOVES[m1].dmg, dmg2to1 = MOVES[m2].dmg;
-    if (m2 === 'block') dmg1to2 = Math.round(dmg1to2 * BLOCK_REDUCTION);
-    if (m1 === 'block') dmg2to1 = Math.round(dmg2to1 * BLOCK_REDUCTION);
-    state.p2.hp = Math.max(0, state.p2.hp - dmg1to2);
-    state.p1.hp = Math.max(0, state.p1.hp - dmg2to1);
-    state.p1.lastLastMove = state.p1.lastMove; state.p1.lastMove = m1;
-    state.p2.lastLastMove = state.p2.lastMove; state.p2.lastMove = m2;
-    animateBoxer(boxerP1, m1==='block'?'blocking':'punching');
-    animateBoxer(boxerP2, m2==='block'?'blocking':'punching');
-    if (dmg1to2 > 0) setTimeout(function() { animateBoxer(boxerP2,'taking-hit'); }, 200);
-    if (dmg2to1 > 0) setTimeout(function() { animateBoxer(boxerP1,'taking-hit'); }, 200);
-    var line1 = state.p1.name+' used '+MOVES[m1].label;
-    var line2 = state.p2.name+' used '+MOVES[m2].label;
-    if (m2==='block' && dmg1to2<MOVES[m1].dmg) line1+=' → blocked! ('+dmg1to2+' dmg)'; else if (dmg1to2>0) line1+=' → '+dmg1to2+' dmg';
-    if (m1==='block' && dmg2to1<MOVES[m2].dmg) line2+=' → blocked! ('+dmg2to1+' dmg)'; else if (dmg2to1>0) line2+=' → '+dmg2to1+' dmg';
-    showEvent(line1, m1==='block'?'ev-block':'ev-hit', line2, m2==='block'?'ev-block':'ev-hit');
-    setTimeout(function() {
-      updateHP();
-      var ko   = state.p1.hp<=0 || state.p2.hp<=0;
-      var done = state.round>=REGULATION_ROUNDS && state.p1.hp!==state.p2.hp;
-      if (ko||done) { setRoundCountdown(0); hideBreakOverlay(); setTimeout(function(){DuelArena.showResult();},1000); }
-      else          { setRoundCountdown(5); showBreakOverlay(5); setTimeout(function(){DuelArena.nextRound();},ROUND_REVEAL_DELAY); }
-    }, 300);
-  },
-
-  showResult: function() {
-    state.active = false; updateDemoButtons();
-    var winnerName, loserName;
-    if (state.p1.hp >= state.p2.hp) { winnerName = state.p1.name; loserName = state.p2.name; }
-    else                             { winnerName = state.p2.name; loserName = state.p1.name; }
-    // ── PATCH SUPABASE: status=complete + winner_name ──
-    // Streamer.bot watches for this to pay dabloobs and post chat result
-    markSessionComplete(winnerName);
-    $('result-winner-text').textContent = '🏆 WINNER';
-    $('result-name-text').textContent   = winnerName;
-    $('result-pot-text').textContent    = '+ '+(state.wager*2)+' dabloobs';
-    $('result-sub-text').textContent    = loserName+' has been defeated';
-    resultScreen.classList.add('visible');
-    var secs = 7;
-    $('result-dismiss-text').textContent = 'closing in '+secs+'s';
-    var iv = setInterval(function() {
-      secs--; $('result-dismiss-text').textContent = 'closing in '+secs+'s';
-      if (secs<=0) { clearInterval(iv); DuelArena.reset(); }
-    }, 1000);
-  },
-
-  reset: function() {
-    state.active = false; stopPolling();
-    resultScreen.classList.remove('visible'); idleScreen.classList.remove('hidden');
-    roundNumEl.textContent = '—'; wagerValEl.textContent = '—';
-    p1NameEl.textContent = 'PLAYER 1'; p2NameEl.textContent = 'PLAYER 2';
-    state.p1.hp = 100; state.p2.hp = 100; updateHP(); setRoundCountdown(0);
-    showEvent('','','','');
-    setBadge(p1Badge,null,'waiting'); setBadge(p2Badge,null,'waiting');
-    ['jab','cross','hook','block'].forEach(function(m) { $('btn-p1-'+m).classList.remove('selected'); $('btn-p2-'+m).classList.remove('selected'); });
-    updateDemoButtons();
-  },
-};
-
-$('btn-start').addEventListener('click', function() { DuelArena.startDuel('Red Boxer','Blue Boxer',500); });
-['jab','cross','hook','block'].forEach(function(m) {
-  $('btn-p1-'+m).addEventListener('click', function() { DuelArena.submitMove(1,m); });
-  $('btn-p2-'+m).addEventListener('click', function() { DuelArena.submitMove(2,m); });
-});
-
-updateDemoButtons();
-
-if (SESSION_ID) {
-  console.log('[Arena] sessionId found:', SESSION_ID, '— polling Supabase...');
-  startPolling();
+function onMoveClick(player, move) {
+  if (!state.active || myPlayer !== player) return;
+  var pState = state[player];
+  if (pState.move !== null) return;
+  pState.move = move;
+  var badge = player === 'p1' ? p1Badge : p2Badge;
+  setBadge(badge, move, 'locked');
+  updateButtons();
+  if (!state.sessionId) return;
+  var field = player === 'p1' ? 'challenger_move' : 'target_move';
+  sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId), {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ [field]: move }),
+  }).catch(function(e) { console.error('[Arena] move submit failed', e); });
 }
+
+
+// ── EXPIRY CLOCK ─────────────────────────────────────────────
+function startExpiryClock() {
+  if (expireIv) clearInterval(expireIv);
+  function tick() {
+    if (!state.expiresAt) return;
+    var msLeft = state.expiresAt - Date.now();
+    if (msLeft <= 0) { expireSession(); return; }
+    var mins = Math.floor(msLeft / 60000);
+    var secs = Math.floor((msLeft % 60000) / 1000);
+    if (roundCdEl) roundCdEl.textContent = 'LIVE ' + mins + ':' + (secs < 10 ? '0' : '') + secs;
+  }
+  tick();
+  expireIv = setInterval(tick, 1000);
+}
+
+async function expireSession() {
+  clearAllTimers();
+  if (state.sessionId) {
+    try {
+      await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId), {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'expired' }),
+      });
+    } catch(e) { console.error('[Arena] expire patch failed', e); }
+  }
+  resetArena('session expired — type !box @username in chat');
+}
+
+// ── RESULT SCREEN ─────────────────────────────────────────────
+// 1. Shows winner UI
+// 2. PATCHes Supabase: status='complete', winner='p1'/'p2', winner_name='TwitchUsername'
+// Streamer.bot polls for status='complete' then:
+//   - Pays winner_name (wager*2) dabloobs
+//   - Posts "winner_name wins X dabloobs!" to chat
+//   - Sets status='paid'
+function showResultScreen(winnerName, loserName) {
+  state.active = false;
+
+  resultWinner.textContent = 'WINNER';
+  resultName.textContent   = winnerName;
+  resultPot.textContent    = '+ ' + (Number(state.wager) * 2) + ' dabloobs';
+  resultSub.textContent    = loserName + ' has been defeated';
+  resultScreen.classList.add('visible');
+
+  if (state.sessionId) {
+    var winnerId = (winnerName === state.p1.name) ? 'p1' : 'p2';
+    sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId), {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        status:      'complete',
+        winner:      winnerId,
+        winner_name: winnerName,
+      }),
+    })
+    .then(function() { console.log('[Arena] Session complete. Winner:', winnerName); })
+    .catch(function(e) { console.error('[Arena] Failed to patch complete:', e); });
+  }
+
+  var secs = Math.floor(RESULT_DISMISS_MS / 1000);
+  resultDismiss.textContent = 'closing in ' + secs + 's';
+  if (resultIv) clearInterval(resultIv);
+  resultIv = setInterval(function() {
+    secs--;
+    resultDismiss.textContent = 'closing in ' + secs + 's';
+    if (secs <= 0) resetArena();
+  }, 1000);
+}
+
+// ── RESET ─────────────────────────────────────────────────────
+function clearAllTimers() {
+  if (pollInterval) clearInterval(pollInterval);
+  if (expireIv)     clearInterval(expireIv);
+  if (resultIv)     clearInterval(resultIv);
+  if (breakIv)      clearInterval(breakIv);
+  pollInterval = expireIv = resultIv = breakIv = null;
+}
+
+function resetArena(msg) {
+  msg = msg || 'type !box @username in chat';
+  clearAllTimers();
+  lastRoundSeen   = 0;
+  state.active    = false;
+  state.sessionId = null;
+  state.wager     = 0;
+  state.round     = 0;
+  state.expiresAt = null;
+  state.p1 = { hp: 100, name: 'PLAYER 1', move: null, lastMove: null, prevMove: null };
+  state.p2 = { hp: 100, name: 'PLAYER 2', move: null, lastMove: null, prevMove: null };
+  myPlayer = null;
+
+  resultScreen.classList.remove('visible');
+  idleScreen.classList.remove('hidden');
+  $('idle-title-text').classList.remove('break-active');
+  $('idle-break-timer').textContent = '';
+  $('idle-sub-text').textContent    = msg;
+  p1NameEl.textContent   = 'PLAYER 1';
+  p2NameEl.textContent   = 'PLAYER 2';
+  roundNumEl.textContent = '—';
+  if (roundCdEl) roundCdEl.textContent = '';
+  wagerValEl.textContent = '—';
+  setBadge(p1Badge, null, 'waiting');
+  setBadge(p2Badge, null, 'waiting');
+  updateHP();
+  showEvent('', '', '', '');
+}
+
+// ── POLL ──────────────────────────────────────────────────────
+async function poll() {
+  if (!state.sessionId || !state.active) return;
+  try {
+    var sRes  = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId) + '&select=*&limit=1');
+    var sRows = await sRes.json();
+    var session = sRows && sRows[0];
+    if (!session) { resetArena('session not found'); return; }
+
+    var s = session.status;
+    if (s === 'expired' || s === 'finished' || s === 'cancelled') { resetArena(); return; }
+    if (s === 'complete' || s === 'paid') return;
+
+    if (session.challenger_hp !== undefined && session.challenger_hp !== null)
+      state.p1.hp = Number(session.challenger_hp);
+    if (session.target_hp !== undefined && session.target_hp !== null)
+      state.p2.hp = Number(session.target_hp);
+    updateHP();
+
+    var rRes = await sbFetch(
+      '/rest/v1/duel_rounds?session_id=eq.' + encodeURIComponent(state.sessionId) +
+      '&round=gt.' + lastRoundSeen + '&order=round.asc&select=*'
+    );
+    var rounds = await rRes.json();
+    if (Array.isArray(rounds) && rounds.length) {
+      for (var i = 0; i < rounds.length; i++) await applyRound(rounds[i]);
+    }
+  } catch(e) { console.error('[Arena] poll error', e); }
+}
+
+// ── APPLY ROUND ───────────────────────────────────────────────
+async function applyRound(round) {
+  lastRoundSeen = Math.max(lastRoundSeen, Number(round.round) || 0);
+  state.round   = lastRoundSeen;
+
+  roundNumEl.textContent = state.round <= REGULATION_ROUNDS
+    ? (state.round + ' / ' + REGULATION_ROUNDS)
+    : ('OT ' + (state.round - REGULATION_ROUNDS));
+
+  var p1Move = String(round.p1_move || '').toLowerCase();
+  var p2Move = String(round.p2_move || '').toLowerCase();
+
+  if (p1Move) animateBoxer(boxerP1, p1Move === 'block' ? 'blocking' : 'punching');
+  if (p2Move) animateBoxer(boxerP2, p2Move === 'block' ? 'blocking' : 'punching');
+  if (p1Move && p1Move !== 'block') setTimeout(function(){ animateBoxer(boxerP2,'taking-hit',400); }, 180);
+  if (p2Move && p2Move !== 'block') setTimeout(function(){ animateBoxer(boxerP1,'taking-hit',400); }, 180);
+
+  if (p1Move) setBadge(p1Badge, p1Move, 'revealed'); else setBadge(p1Badge, null, 'waiting');
+  if (p2Move) setBadge(p2Badge, p2Move, 'revealed'); else setBadge(p2Badge, null, 'waiting');
+
+  if (round.p1_hp !== undefined && round.p1_hp !== null) state.p1.hp = Number(round.p1_hp);
+  if (round.p2_hp !== undefined && round.p2_hp !== null) state.p2.hp = Number(round.p2_hp);
+  updateHP();
+
+  var txt = round.event_text || ('Round ' + round.round);
+  showEvent(txt, 'ev-hit', state.p1.name + ' ' + state.p1.hp + 'HP  |  ' + state.p2.name + ' ' + state.p2.hp + 'HP', 'ev-info');
+
+  state.p1.prevMove = state.p1.lastMove; state.p1.lastMove = p1Move || null; state.p1.move = null;
+  state.p2.prevMove = state.p2.lastMove; state.p2.lastMove = p2Move || null; state.p2.move = null;
+
+  if (round.winner) {
+    var w = String(round.winner).toLowerCase();
+    var winnerName = (w === 'p1') ? state.p1.name : state.p2.name;
+    var loserName  = (w === 'p1') ? state.p2.name : state.p1.name;
+    setTimeout(function(){ showResultScreen(winnerName, loserName); }, 1200);
+  }
+}
+
+// ── LOAD LIVE SESSION ─────────────────────────────────────────
+async function loadLiveSession() {
+  var params    = new URLSearchParams(window.location.search);
+  var sessionId = params.get('sessionId');
+
+  if (!sessionId) {
+    $('idle-sub-text').textContent = 'type !box @username in chat';
+    return;
+  }
+
+  try {
+    var res  = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(sessionId) + '&select=*&limit=1');
+    var rows = await res.json();
+    var session = rows && rows[0];
+
+    if (!session) {
+      $('idle-sub-text').textContent = 'session not found';
+      return;
+    }
+
+    var createdAt   = new Date(session.created_at || Date.now()).getTime();
+    state.expiresAt = createdAt + SESSION_EXPIRE_MS;
+    state.sessionId = sessionId;
+
+    if (Date.now() >= state.expiresAt) { await expireSession(); return; }
+
+    if (session.status !== 'in_progress') {
+      $('idle-sub-text').textContent = 'waiting for match...';
+      return;
+    }
+
+    state.active  = true;
+    state.wager   = Number(session.wager || 0);
+    state.p1.name = String(session.challenger_name || 'PLAYER 1').toUpperCase();
+    state.p2.name = String(session.target_name     || 'PLAYER 2').toUpperCase();
+    state.p1.hp   = Number(session.challenger_hp !== undefined ? session.challenger_hp : 100);
+    state.p2.hp   = Number(session.target_hp     !== undefined ? session.target_hp     : 100);
+
+    idleScreen.classList.add('hidden');
+    p1NameEl.textContent   = state.p1.name;
+    p2NameEl.textContent   = state.p2.name;
+    wagerValEl.textContent = state.wager + ' dabloobs';
+    roundNumEl.textContent = '—';
+    updateHP();
+    setBadge(p1Badge, null, 'waiting');
+    setBadge(p2Badge, null, 'waiting');
+    showEvent('DUEL ACCEPTED', 'ev-info', state.p1.name + ' vs ' + state.p2.name, 'ev-info');
+    startExpiryClock();
+    await poll();
+    pollInterval = setInterval(poll, POLL_MS);
+
+  } catch(e) {
+    console.error('[Arena] loadLiveSession error', e);
+    $('idle-sub-text').textContent = 'failed to load session';
+  }
+}
+
+// ── BOOT ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  initDom();
+
+  // Wire player buttons
+  ['p1','p2'].forEach(function(player) {
+    ['jab','cross','hook','block'].forEach(function(move) {
+      var btn = $('btn-' + player + '-' + move);
+      if (btn) btn.addEventListener('click', function() { onMoveClick(player, move); });
+    });
+  });
+
+  loadLiveSession();
+});
 </script>
 </body>
 </html>
