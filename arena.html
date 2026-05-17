@@ -743,7 +743,7 @@ html, body {
 // ═══════════════════════════════════════════════════════════════
 //  ARENA.HTML — LIVE VERSION
 //  Reads from Supabase the_boob_games + boxing_moves
-//  Calls resolve-boxing-round when both moves for the current round exist
+//  Calls resolve-round when both moves for the current round exist
 //  Edge function updates HP, round, status, and winner
 // ═══════════════════════════════════════════════════════════════
 
@@ -1050,7 +1050,7 @@ async function maybeResolveCurrentRound(forceRound) {
     resolveCooldowns[roundToResolve] = now;
 
     resolveInFlight = true;
-    setDebug('ROUND ' + roundToResolve + ' | both moves found', 'calling resolve-boxing-round...');
+    setDebug('ROUND ' + roundToResolve + ' | both moves found', 'calling resolve-round...');
 
     var controller = new AbortController();
     var timeoutId = setTimeout(function() {
@@ -1059,7 +1059,7 @@ async function maybeResolveCurrentRound(forceRound) {
 
     var res;
     try {
-      res = await fetch(SB_URL + '/functions/v1/resolve-boxing-round', {
+      res = await fetch(SB_URL + '/functions/v1/resolve-round', {
         method: 'POST',
         headers: {
           'apikey': SB_KEY,
@@ -1070,11 +1070,15 @@ async function maybeResolveCurrentRound(forceRound) {
       });
     } catch (fetchError) {
       clearTimeout(timeoutId);
+      var errName = fetchError && fetchError.name ? fetchError.name : 'UnknownError';
+      var errMsg = fetchError && fetchError.message ? fetchError.message : String(fetchError);
+      var errStack = fetchError && fetchError.stack ? String(fetchError.stack).split('\n')[0] : '';
       if (fetchError && fetchError.name === 'AbortError') {
-        setDebug('resolve-boxing-round TIMEOUT', 'No response after 12s');
+        setDebug('resolve-round TIMEOUT', 'No response after 12s');
       } else {
-        setDebug('resolve-boxing-round FETCH FAILED', String(fetchError && fetchError.message ? fetchError.message : fetchError));
+        setDebug('resolve-round FETCH FAILED', errName + ': ' + errMsg + (errStack ? ' | ' + errStack : ''));
       }
+      console.error('[Arena] resolve fetch error details', fetchError);
       throw fetchError;
     }
     clearTimeout(timeoutId);
@@ -1087,11 +1091,11 @@ async function maybeResolveCurrentRound(forceRound) {
     } catch (_) {}
 
     if (!res.ok) {
-      setDebug('resolve-boxing-round FAILED', ('HTTP ' + res.status) + (rawText ? ' | ' + rawText : ''));
-      throw new Error((payload && (payload.error || payload.message)) || rawText || 'resolve-boxing-round failed');
+      setDebug('resolve-round FAILED', ('HTTP ' + res.status) + (rawText ? ' | ' + rawText : ''));
+      throw new Error((payload && (payload.error || payload.message)) || rawText || 'resolve-round failed');
     }
 
-    setDebug('resolve-boxing-round OK', rawText || 'success');
+    setDebug('resolve-round OK', rawText || 'success');
 
     resolvedRounds[roundToResolve] = true;
     setDebug('ROUND ' + roundToResolve + ' resolved', 'refreshing arena state...');
