@@ -750,6 +750,7 @@ html, body {
 // ── SUPABASE CONFIG ──────────────────────────────────────────
 const SB_URL = 'https://dwidrzvykkhrwfknirnw.supabase.co';
 const SB_KEY = 'sb_publishable_GaADxTu77sNKGDdgHxFgtQ_ZoXavNPX';
+const DUEL_SHARED_SECRET = 'ni7Vq2Lx9pR4mT8kZ1cGGW6hJ3fQ0yB5uNsD4eAaP9er';
 
 async function sbFetch(path, opts) {
   opts = opts || {};
@@ -1063,6 +1064,7 @@ async function maybeResolveCurrentRound(forceRound) {
         method: 'POST',
         headers: {
           'apikey': SB_KEY,
+          'x-duel-secret': DUEL_SHARED_SECRET,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ session_id: state.sessionId }),
