@@ -795,6 +795,9 @@ var lastRoundSeen = 0;
 var lastSessionUpdatedAt = null;
 var resolveInFlight = false;
 var resolvedRounds = {};
+var resolveCooldowns = {};
+var debugLine1 = '';
+var debugLine2 = '';
 
 // ── DOM REFS ─────────────────────────────────────────────────
 var $           = function(id) { return document.getElementById(id); };
@@ -839,6 +842,8 @@ function updateHP() {
 }
 
 function showEvent(line1, cls1, line2, cls2) {
+  debugLine1 = line1 || '';
+  debugLine2 = line2 || '';
   var log = $('event-log');
   if (!log) return;
   log.innerHTML = '';
@@ -852,6 +857,26 @@ function showEvent(line1, cls1, line2, cls2) {
   }
   add(line1, cls1);
   add(line2, cls2);
+}
+
+function setDebug(line1, line2) {
+  debugLine1 = line1 || '';
+  debugLine2 = line2 || '';
+  var log = $('event-log');
+  if (!log) return;
+  log.innerHTML = '';
+  if (debugLine1) {
+    var d1 = document.createElement('div');
+    d1.className = 'event-line ev-info visible';
+    d1.textContent = debugLine1;
+    log.appendChild(d1);
+  }
+  if (debugLine2) {
+    var d2 = document.createElement('div');
+    d2.className = 'event-line ev-info visible';
+    d2.textContent = debugLine2;
+    log.appendChild(d2);
+  }
 }
 
 function setBadge(el, move, st) {
@@ -926,6 +951,7 @@ async function onMoveClick(player, move) {
   if (pState.move !== null || !state.sessionId || !state.round) return;
 
   pState.move = move;
+  setDebug('Submitting ' + move.toUpperCase(), 'Round ' + state.round + ' as ' + player.toUpperCase());
   var badge = player === 'p1' ? p1Badge : p2Badge;
   setBadge(badge, move, 'locked');
   updateButtons();
@@ -950,8 +976,9 @@ async function onMoveClick(player, move) {
       });
     }
 
-    var resolved = await maybeResolveCurrentRound();
+    var resolved = await maybeResolveCurrentRound(state.round);
     if (!resolved) {
+      setDebug('Move saved for round ' + state.round, 'Waiting for other player or resolver');
       await poll();
     }
   } catch(e) {
@@ -964,7 +991,7 @@ async function fetchRoundMoves(roundNumber) {
   var res = await sbFetch(
     '/rest/v1/boxing_moves?session_id=eq.' + encodeURIComponent(state.sessionId) +
     '&round_number=eq.' + encodeURIComponent(roundNumber) +
-    '&order=submitted_at.asc&select=*'
+    '&order=submitted_at.asc,id.asc&select=*'
   );
   return await res.json();
 }
@@ -996,20 +1023,35 @@ function syncSessionState(session) {
     : ('OT ' + (state.round - REGULATION_ROUNDS));
 }
 
-async function maybeResolveCurrentRound() {
-  if (!state.sessionId || !state.round || resolveInFlight || !state.active) return false;
+async function maybeResolveCurrentRound(forceRound) {
+  if (!state.sessionId || resolveInFlight || !state.active) return false;
 
   try {
-    var roundToResolve = Number(state.round);
-    var moves = await fetchRoundMoves(roundToResolve);
-    if (!Array.isArray(moves) || moves.length < 2) return false;
-    if (resolvedRounds[roundToResolve]) return false;
+    var roundToResolve = Number(forceRound || state.round || 0);
+    if (!roundToResolve) return false;
 
+    var moves = await fetchRoundMoves(roundToResolve);
     var challengerMove = getRoundMoveForPlayer(moves, state.p1.id);
     var targetMove     = getRoundMoveForPlayer(moves, state.p2.id);
+    var moveCount = Array.isArray(moves) ? moves.length : 0;
+
+    setDebug(
+      'ROUND ' + roundToResolve + ' | moves found: ' + moveCount,
+      'P1=' + (challengerMove ? challengerMove.move : 'waiting') + ' | P2=' + (targetMove ? targetMove.move : 'waiting')
+    );
+
     if (!challengerMove || !targetMove) return false;
+    if (resolvedRounds[roundToResolve]) return false;
+
+    var now = Date.now();
+    if (resolveCooldowns[roundToResolve] && now - resolveCooldowns[roundToResolve] < 2500) {
+      return false;
+    }
+    resolveCooldowns[roundToResolve] = now;
 
     resolveInFlight = true;
+    setDebug('ROUND ' + roundToResolve + ' | both moves found', 'calling resolve-boxing-round...');
+
     var res = await fetch(SB_URL + '/functions/v1/resolve-boxing-round', {
       method: 'POST',
       headers: {
@@ -1021,15 +1063,19 @@ async function maybeResolveCurrentRound() {
     });
 
     var payload = null;
+    var rawText = '';
     try {
-      payload = await res.json();
+      rawText = await res.text();
+      payload = rawText ? JSON.parse(rawText) : null;
     } catch (_) {}
 
     if (!res.ok) {
-      throw new Error((payload && (payload.error || payload.message)) || 'resolve-boxing-round failed');
+      setDebug('resolve-boxing-round FAILED', rawText || ('HTTP ' + res.status));
+      throw new Error((payload && (payload.error || payload.message)) || rawText || 'resolve-boxing-round failed');
     }
 
     resolvedRounds[roundToResolve] = true;
+    setDebug('ROUND ' + roundToResolve + ' resolved', 'refreshing arena state...');
 
     var refreshedSession = await fetchLiveSession();
     if (refreshedSession) {
@@ -1162,6 +1208,9 @@ function resetArena(msg) {
   lastSessionUpdatedAt = null;
   resolveInFlight = false;
   resolvedRounds = {};
+  resolveCooldowns = {};
+  debugLine1 = '';
+  debugLine2 = '';
   state.active    = false;
   state.sessionId = null;
   state.wager     = 0;
@@ -1212,6 +1261,13 @@ async function poll() {
     var moves = await fetchRoundMoves(currentRound);
     var challengerMove = getRoundMoveForPlayer(moves, state.p1.id);
     var targetMove     = getRoundMoveForPlayer(moves, state.p2.id);
+
+    if (!challengerMove || !targetMove) {
+      setDebug(
+        'ROUND ' + currentRound + ' | waiting for moves',
+        'P1=' + (challengerMove ? challengerMove.move : 'waiting') + ' | P2=' + (targetMove ? targetMove.move : 'waiting')
+      );
+    }
 
     setBadge(p1Badge, challengerMove ? challengerMove.move : null, challengerMove ? 'locked' : 'waiting');
     setBadge(p2Badge, targetMove ? targetMove.move : null, targetMove ? 'locked' : 'waiting');
