@@ -598,6 +598,19 @@ html, body {
   }
 }
 
+
+
+/* FIX: keep both move status badges the same width on desktop */
+#p1-move-badge,
+#p2-move-badge {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 </style>
 </head>
 <body>
@@ -843,6 +856,8 @@ function showEvent(line1, cls1, line2, cls2) {
 
 function setBadge(el, move, st) {
   if (!el) return;
+  el.style.width = '100%';
+  el.style.boxSizing = 'border-box';
   if (st === 'waiting') {
     el.textContent = 'WAITING';
     el.className = 'move-badge waiting';
@@ -916,21 +931,29 @@ async function onMoveClick(player, move) {
   updateButtons();
 
   try {
-    await sbFetch('/rest/v1/boxing_moves', {
-      method: 'POST',
-      headers: {
-        Prefer: 'return=representation',
-      },
-      body: JSON.stringify({
-        session_id: state.sessionId,
-        round_number: state.round,
-        player_id: twitchUser.id,
-        player_name: twitchUser.login,
-        move: move,
-      }),
-    });
+    var existingMoves = await fetchRoundMoves(state.round);
+    var existingPlayerMove = getRoundMoveForPlayer(existingMoves, twitchUser.id);
 
-    await maybeResolveCurrentRound();
+    if (!existingPlayerMove) {
+      await sbFetch('/rest/v1/boxing_moves', {
+        method: 'POST',
+        headers: {
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({
+          session_id: state.sessionId,
+          round_number: state.round,
+          player_id: String(twitchUser.id),
+          player_name: twitchUser.login,
+          move: move,
+        }),
+      });
+    }
+
+    var resolved = await maybeResolveCurrentRound();
+    if (!resolved) {
+      await poll();
+    }
   } catch(e) {
     console.error('[Arena] move submit failed', e);
   }
@@ -946,17 +969,45 @@ async function fetchRoundMoves(roundNumber) {
   return await res.json();
 }
 
+async function fetchLiveSession() {
+  var sRes  = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId) + '&select=*&limit=1');
+  var sRows = await sRes.json();
+  return sRows && sRows[0] ? sRows[0] : null;
+}
+
+function getRoundMoveForPlayer(moves, playerId) {
+  if (!Array.isArray(moves)) return null;
+  var playerMoves = moves.filter(function(m) {
+    return String(m.player_id) === String(playerId);
+  });
+  if (!playerMoves.length) return null;
+  return playerMoves[playerMoves.length - 1];
+}
+
+function syncSessionState(session) {
+  if (!session) return;
+  state.wager = Number(session.wager || state.wager || 0);
+  state.round = Number(session.current_round || state.round || 1);
+  state.p1.hp = Number(session.challenger_hp !== undefined && session.challenger_hp !== null ? session.challenger_hp : state.p1.hp);
+  state.p2.hp = Number(session.target_hp !== undefined && session.target_hp !== null ? session.target_hp : state.p2.hp);
+  updateHP();
+  roundNumEl.textContent = state.round <= REGULATION_ROUNDS
+    ? (state.round + ' / ' + REGULATION_ROUNDS)
+    : ('OT ' + (state.round - REGULATION_ROUNDS));
+}
+
 async function maybeResolveCurrentRound() {
-  if (!state.sessionId || !state.round || resolveInFlight || !state.active) return;
+  if (!state.sessionId || !state.round || resolveInFlight || !state.active) return false;
 
   try {
-    var moves = await fetchRoundMoves(state.round);
-    if (!Array.isArray(moves) || moves.length < 2) return;
-    if (resolvedRounds[state.round]) return;
+    var roundToResolve = Number(state.round);
+    var moves = await fetchRoundMoves(roundToResolve);
+    if (!Array.isArray(moves) || moves.length < 2) return false;
+    if (resolvedRounds[roundToResolve]) return false;
 
-    var challengerMove = moves.find(function(m) { return String(m.player_id) === String(state.p1.id); });
-    var targetMove     = moves.find(function(m) { return String(m.player_id) === String(state.p2.id); });
-    if (!challengerMove || !targetMove) return;
+    var challengerMove = getRoundMoveForPlayer(moves, state.p1.id);
+    var targetMove     = getRoundMoveForPlayer(moves, state.p2.id);
+    if (!challengerMove || !targetMove) return false;
 
     resolveInFlight = true;
     var res = await fetch(SB_URL + '/functions/v1/resolve-boxing-round', {
@@ -969,33 +1020,43 @@ async function maybeResolveCurrentRound() {
       body: JSON.stringify({ session_id: state.sessionId })
     });
 
+    var payload = null;
+    try {
+      payload = await res.json();
+    } catch (_) {}
+
     if (!res.ok) {
-      var errText = await res.text();
-      throw new Error(errText || 'resolve-boxing-round failed');
+      throw new Error((payload && (payload.error || payload.message)) || 'resolve-boxing-round failed');
     }
 
-    resolvedRounds[state.round] = true;
+    resolvedRounds[roundToResolve] = true;
+
+    var refreshedSession = await fetchLiveSession();
+    if (refreshedSession) {
+      lastSessionUpdatedAt = refreshedSession.updated_at || lastSessionUpdatedAt;
+      syncSessionState(refreshedSession);
+      await applyResolvedRound(refreshedSession, roundToResolve);
+    }
+
+    return true;
   } catch (e) {
     console.error('[Arena] round resolve failed', e);
+    return false;
   } finally {
     resolveInFlight = false;
   }
 }
 
-async function applyResolvedRound(session, previousRound) {
-  var resolvedRound = previousRound || Math.max(1, Number(session.current_round || 1) - 1);
+async function applyResolvedRound(session, resolvedRound) {
+  resolvedRound = Number(resolvedRound || Math.max(1, Number(session.current_round || 1) - 1));
   var moves = await fetchRoundMoves(resolvedRound);
-  var challengerMove = moves.find(function(m) { return String(m.player_id) === String(state.p1.id); });
-  var targetMove     = moves.find(function(m) { return String(m.player_id) === String(state.p2.id); });
+  var challengerMove = getRoundMoveForPlayer(moves, state.p1.id);
+  var targetMove     = getRoundMoveForPlayer(moves, state.p2.id);
   var p1Move = challengerMove ? String(challengerMove.move || '').toLowerCase() : '';
   var p2Move = targetMove ? String(targetMove.move || '').toLowerCase() : '';
 
   lastRoundSeen = Math.max(lastRoundSeen, resolvedRound);
-  state.round = Number(session.current_round || resolvedRound || 1);
-
-  roundNumEl.textContent = state.round <= REGULATION_ROUNDS
-    ? (state.round + ' / ' + REGULATION_ROUNDS)
-    : ('OT ' + (state.round - REGULATION_ROUNDS));
+  syncSessionState(session);
 
   if (p1Move) animateBoxer(boxerP1, p1Move === 'block' ? 'blocking' : 'punching');
   if (p2Move) animateBoxer(boxerP2, p2Move === 'block' ? 'blocking' : 'punching');
@@ -1011,10 +1072,6 @@ async function applyResolvedRound(session, previousRound) {
   state.p2.lastMove = p2Move || null;
   state.p1.move = null;
   state.p2.move = null;
-
-  state.p1.hp = Number(session.challenger_hp !== undefined ? session.challenger_hp : state.p1.hp);
-  state.p2.hp = Number(session.target_hp !== undefined ? session.target_hp : state.p2.hp);
-  updateHP();
   updateButtons();
 
   showEvent(
@@ -1026,13 +1083,12 @@ async function applyResolvedRound(session, previousRound) {
 
   resolvedRounds[resolvedRound] = true;
 
-  if (session.status === 'complete' && session.winner_name) {
+  if ((session.status === 'complete' || session.status === 'paid') && session.winner_name) {
     var winnerName = String(session.winner_name).toUpperCase();
     var loserName = winnerName === state.p1.name ? state.p2.name : state.p1.name;
     setTimeout(function(){ showResultScreen(winnerName, loserName); }, 1200);
   }
 }
-
 
 // ── EXPIRY CLOCK ─────────────────────────────────────────────
 function startExpiryClock() {
@@ -1135,35 +1191,27 @@ function resetArena(msg) {
 async function poll() {
   if (!state.sessionId || !state.active) return;
   try {
-    var sRes  = await sbFetch('/rest/v1/the_boob_games?session_id=eq.' + encodeURIComponent(state.sessionId) + '&select=*&limit=1');
-    var sRows = await sRes.json();
-    var session = sRows && sRows[0];
+    var session = await fetchLiveSession();
     if (!session) { resetArena('session not found'); return; }
 
     var s = session.status;
     if (s === 'expired' || s === 'finished' || s === 'cancelled') { resetArena(); return; }
 
-    state.p1.hp = Number(session.challenger_hp !== undefined && session.challenger_hp !== null ? session.challenger_hp : state.p1.hp);
-    state.p2.hp = Number(session.target_hp !== undefined && session.target_hp !== null ? session.target_hp : state.p2.hp);
-    updateHP();
-
     var currentRound = Number(session.current_round || 1);
-    var roundChanged = currentRound > lastRoundSeen + 0;
     var updatedChanged = !!session.updated_at && session.updated_at !== lastSessionUpdatedAt;
+    var resolvedRound = currentRound > 1 ? currentRound - 1 : 0;
 
-    if (updatedChanged && currentRound > 1) {
-      await applyResolvedRound(session, currentRound - 1);
+    syncSessionState(session);
+
+    if (updatedChanged && resolvedRound > 0 && !resolvedRounds[resolvedRound]) {
+      await applyResolvedRound(session, resolvedRound);
     }
 
     lastSessionUpdatedAt = session.updated_at || lastSessionUpdatedAt;
-    state.round = currentRound;
-    roundNumEl.textContent = state.round <= REGULATION_ROUNDS
-      ? (state.round + ' / ' + REGULATION_ROUNDS)
-      : ('OT ' + (state.round - REGULATION_ROUNDS));
 
     var moves = await fetchRoundMoves(currentRound);
-    var challengerMove = Array.isArray(moves) ? moves.find(function(m) { return String(m.player_id) === String(state.p1.id); }) : null;
-    var targetMove     = Array.isArray(moves) ? moves.find(function(m) { return String(m.player_id) === String(state.p2.id); }) : null;
+    var challengerMove = getRoundMoveForPlayer(moves, state.p1.id);
+    var targetMove     = getRoundMoveForPlayer(moves, state.p2.id);
 
     setBadge(p1Badge, challengerMove ? challengerMove.move : null, challengerMove ? 'locked' : 'waiting');
     setBadge(p2Badge, targetMove ? targetMove.move : null, targetMove ? 'locked' : 'waiting');
@@ -1174,14 +1222,13 @@ async function poll() {
 
     if (challengerMove && targetMove && !resolvedRounds[currentRound]) {
       await maybeResolveCurrentRound();
+      return;
     }
 
-    if (s === 'complete' || s === 'paid') {
+    if ((s === 'complete' || s === 'paid') && session.winner_name) {
       var winnerName = String(session.winner_name || '').toUpperCase();
-      if (winnerName) {
-        var loserName = winnerName === state.p1.name ? state.p2.name : state.p1.name;
-        showResultScreen(winnerName, loserName);
-      }
+      var loserName = winnerName === state.p1.name ? state.p2.name : state.p1.name;
+      showResultScreen(winnerName, loserName);
       return;
     }
   } catch(e) { console.error('[Arena] poll error', e); }
