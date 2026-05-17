@@ -1052,15 +1052,33 @@ async function maybeResolveCurrentRound(forceRound) {
     resolveInFlight = true;
     setDebug('ROUND ' + roundToResolve + ' | both moves found', 'calling resolve-boxing-round...');
 
-    var res = await fetch(SB_URL + '/functions/v1/resolve-boxing-round', {
-      method: 'POST',
-      headers: {
-        'apikey': SB_KEY,
-        'Authorization': 'Bearer ' + SB_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ session_id: state.sessionId })
-    });
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() {
+      controller.abort();
+    }, 12000);
+
+    var res;
+    try {
+      res = await fetch(SB_URL + '/functions/v1/resolve-boxing-round', {
+        method: 'POST',
+        headers: {
+          'apikey': SB_KEY,
+          'Authorization': 'Bearer ' + SB_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ session_id: state.sessionId }),
+        signal: controller.signal
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError && fetchError.name === 'AbortError') {
+        setDebug('resolve-boxing-round TIMEOUT', 'No response after 12s');
+      } else {
+        setDebug('resolve-boxing-round FETCH FAILED', String(fetchError && fetchError.message ? fetchError.message : fetchError));
+      }
+      throw fetchError;
+    }
+    clearTimeout(timeoutId);
 
     var payload = null;
     var rawText = '';
@@ -1070,9 +1088,11 @@ async function maybeResolveCurrentRound(forceRound) {
     } catch (_) {}
 
     if (!res.ok) {
-      setDebug('resolve-boxing-round FAILED', rawText || ('HTTP ' + res.status));
+      setDebug('resolve-boxing-round FAILED', ('HTTP ' + res.status) + (rawText ? ' | ' + rawText : ''));
       throw new Error((payload && (payload.error || payload.message)) || rawText || 'resolve-boxing-round failed');
     }
+
+    setDebug('resolve-boxing-round OK', rawText || 'success');
 
     resolvedRounds[roundToResolve] = true;
     setDebug('ROUND ' + roundToResolve + ' resolved', 'refreshing arena state...');
