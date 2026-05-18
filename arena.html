@@ -1215,19 +1215,51 @@ function startExpiryClock() {
   expireIv = setInterval(tick, 1000);
 }
 
-async function expireSession() {
+async function expireSession(){
   clearAllTimers();
-  if (!state.sessionId) return;
-  try {
-    await sbFetch(`/rest/v1/the_boob_games?session_id=eq.${encodeURIComponent(state.sessionId)}`, {
-      method: 'PATCH',
-      headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ status: 'expired' })
+  if(!state.sessionId) return;
+
+  try{
+    var live = await fetchLiveSession();
+
+    if(!live){
+      resetArena('session expired. type !box username in chat');
+      return;
+    }
+
+    var liveStatus = String(live.status || '').toLowerCase();
+
+    // IMPORTANT:
+    // Only mark the match expired if it is still genuinely in progress.
+    // If the fight already finished, completed, or paid out, never patch it to expired,
+    // otherwise Streamer.bot can see both states and refund both players.
+    if(
+      liveStatus === 'complete' ||
+      liveStatus === 'paid' ||
+      liveStatus === 'finished' ||
+      liveStatus === 'cancelled'
+    ){
+      if((liveStatus === 'complete' || liveStatus === 'paid') && live.winnername){
+        var winnerName = String(live.winnername).toUpperCase();
+        var loserName = winnerName === state.p1.name ? state.p2.name : state.p1.name;
+        showResultScreen(winnerName, loserName);
+        return;
+      }
+
+      resetArena();
+      return;
+    }
+
+    await sbFetch(`/rest/v1/theboobgames?sessionid=eq.${encodeURIComponent(state.sessionId)}`, {
+      method:'PATCH',
+      headers:{Prefer:'return=minimal'},
+      body:JSON.stringify({ status:'expired' })
     });
-  } catch(e) {
-    console.error('Arena expire patch failed', e);
+  }catch(e){
+    console.error('Arena expire patch failed:', e);
   }
-  resetArena('session expired — type !box username in chat');
+
+  resetArena('session expired. type !box username in chat');
 }
 
 // ── RESULT SCREEN ─────────────────────────────────────────────
