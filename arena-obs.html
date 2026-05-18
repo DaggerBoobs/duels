@@ -567,11 +567,26 @@ html, body {
 
 /* FIX: login overlay must sit above fixed controls on desktop and mobile */
 #twitch-login-screen {
-  z-index: 1001 !important;
+  position: fixed;
+  left: 50%;
+  bottom: 132px;
+  transform: translateX(-50%);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(0,0,0,0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 12px 14px;
   pointer-events: auto;
+  width: max-content;
+  max-width: calc(100vw - 24px);
 }
 
 #twitch-login-screen.hidden {
+  display: none !important;
   pointer-events: none;
 }
 
@@ -580,15 +595,21 @@ html, body {
   z-index: 1002;
   pointer-events: auto;
   touch-action: manipulation;
+  min-height: 44px;
 }
 
 @media (max-width: 600px) {
   #twitch-login-screen {
-    justify-content: flex-start !important;
-    padding-top: 214px;
-    padding-left: 12px;
-    padding-right: 12px;
-    gap: 12px !important;
+    left: 50%;
+    right: auto;
+    top: 402px;
+    bottom: auto;
+    transform: translateX(-50%);
+    width: calc(100vw - 12px);
+    max-width: 420px;
+    padding: 10px 10px;
+    gap: 8px;
+    background: rgba(0,0,0,0.9);
   }
 }
 
@@ -626,11 +647,7 @@ html, body {
   </div>
 
   <!-- TWITCH LOGIN SCREEN -->
-  <div id="twitch-login-screen" class="hidden" style="
-    position: absolute; inset: 0; z-index: 1001;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 16px;
-    background: transparent;">
+  <div id="twitch-login-screen" class="hidden">
     <div style="font-family: var(--font-pixel); font-size: 10px; color: var(--color-gold); letter-spacing: 2px;">
       ⚔ DUEL ARENA ⚔
     </div>
