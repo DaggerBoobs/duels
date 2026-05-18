@@ -226,7 +226,7 @@ html, body {
   overflow: hidden;
 }
 .move-panel.p2 {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
 }
 .move-panel-label {
   font-size: 6px; color: var(--color-text-muted); text-transform: uppercase;
@@ -605,10 +605,16 @@ html, body {
 #p2-move-badge {
   width: 100% !important;
   min-width: 0 !important;
+  max-width: none !important;
   display: flex !important;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+}
+
+.move-panel.p2 .move-badge {
+  width: 100% !important;
+  justify-self: stretch !important;
 }
 
 </style>
